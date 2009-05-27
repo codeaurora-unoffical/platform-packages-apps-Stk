@@ -33,7 +33,7 @@ abstract class StkApp extends Application {
     static final int MENU_ID_HELP = android.view.Menu.FIRST + 2;
 
     // UI timeout, 30 seconds - used for display dialog and activities.
-    static final int UI_TIMEOUT = (40 * 1000);
+    static final int UI_TIMEOUT = (30 * 1000);
 
     // Tone default timeout - 2 seconds
     static final int TONE_DFEAULT_TIMEOUT = (2 * 1000);
