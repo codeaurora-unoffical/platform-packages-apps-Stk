@@ -38,6 +38,9 @@ public class StkCmdReceiver extends BroadcastReceiver {
         } else if (action.equals(AppInterface.STK_SESSION_END_ACTION)) {
             handleSessionEnd(context, intent);
         }
+        if(action.equals(AppInterface.STK_TERMINATE_ACTION)) {
+            handleSetUpEvents(context, intent);
+        }
     }
 
     private void handleCommandMessage(Context context, Intent intent) {
@@ -52,6 +55,13 @@ public class StkCmdReceiver extends BroadcastReceiver {
     private void handleSessionEnd(Context context, Intent intent) {
         Bundle args = new Bundle();
         args.putInt(StkAppService.OPCODE, StkAppService.OP_END_SESSION);
+        context.startService(new Intent(context, StkAppService.class)
+                .putExtras(args));
+    }
+
+    private void handleSetUpEvents(Context context, Intent intent) {
+        Bundle args = new Bundle();
+        args.putInt(StkAppService.OPCODE, StkAppService.OP_BROWSER_TERMINATION);
         context.startService(new Intent(context, StkAppService.class)
                 .putExtras(args));
     }
