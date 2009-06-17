@@ -44,9 +44,11 @@ import com.android.internal.telephony.gsm.stk.Item;
 import com.android.internal.telephony.gsm.stk.ResultCode;
 import com.android.internal.telephony.gsm.stk.StkCmdMessage;
 import com.android.internal.telephony.gsm.stk.StkCmdMessage.BrowserSettings;
+import com.android.internal.telephony.gsm.stk.StkCmdMessage.EventSettings;
 import com.android.internal.telephony.gsm.stk.StkLog;
 import com.android.internal.telephony.gsm.stk.StkResponseMessage;
 import com.android.internal.telephony.gsm.stk.TextMessage;
+import com.android.internal.telephony.gsm.stk.SetEventList;
 
 import java.util.LinkedList;
 
@@ -72,8 +74,10 @@ public class StkAppService extends Service implements Runnable {
     private NotificationManager mNotificationManager = null;
     private LinkedList<DelayedCmd> mCmdsQ = null;
     private boolean launchBrowser = false;
+    private boolean terminateBrowser = false;
     private BrowserSettings mBrowserSettings = null;
     static StkAppService sInstance = null;
+    private EventSettings mEventSettings = null;
 
     // Used for setting FLAG_ACTIVITY_NO_USER_ACTION when
     // creating an intent.
@@ -91,6 +95,9 @@ public class StkAppService extends Service implements Runnable {
     static final String HELP = "help";
     static final String CONFIRMATION = "confirm";
     static final String SCREEN_STATUS = "screen status";
+    static final String EVENT = "event";
+    static final String EVENT_CAUSE = "cause";
+
 
     // operations ids for different service functionality.
     static final int OP_CMD = 1;
@@ -99,6 +106,7 @@ public class StkAppService extends Service implements Runnable {
     static final int OP_END_SESSION = 4;
     static final int OP_BOOT_COMPLETED = 5;
     private static final int OP_DELAYED_MSG = 6;
+    static final int OP_BROWSER_TERMINATION = 7;
     static final int OP_IDLE_SCREEN = 8;
 
     // Response ids
@@ -106,6 +114,7 @@ public class StkAppService extends Service implements Runnable {
     static final int RES_ID_INPUT = 12;
     static final int RES_ID_CONFIRM = 13;
     static final int RES_ID_DONE = 14;
+    static final int RES_ID_EVENT_LIST = 15;
 
     static final int RES_ID_TIMEOUT = 20;
     static final int RES_ID_BACKWARD = 21;
@@ -185,6 +194,8 @@ public class StkAppService extends Service implements Runnable {
         case OP_LAUNCH_APP:
         case OP_END_SESSION:
         case OP_BOOT_COMPLETED:
+            break;
+        case OP_BROWSER_TERMINATION:
             break;
         default:
             return;
@@ -309,6 +320,13 @@ public class StkAppService extends Service implements Runnable {
                 break;
             case OP_DELAYED_MSG:
                 handleDelayedCmd();
+                break;
+            case OP_BROWSER_TERMINATION:
+                StkLog.d(this, "USER indication to terminate browser");
+                if (terminateBrowser) {
+                   launchEventList();
+                   terminateBrowser = false;
+                }
                 break;
             case OP_IDLE_SCREEN:
                 Bundle args = ((Bundle) msg.obj);
@@ -446,6 +464,9 @@ public class StkAppService extends Service implements Runnable {
         case PLAY_TONE:
             launchToneDialog();
             break;
+        case SET_UP_EVENT_LIST:
+            handleEventList(mCurrentCmd.getSetEventList());
+            break;
         }
 
         if (!waitForUsersResponse) {
@@ -483,6 +504,12 @@ public class StkAppService extends Service implements Runnable {
                 resMsg.setMenuSelection(menuSelection);
                 break;
             }
+            break;
+        case RES_ID_EVENT_LIST:
+            int eventValue = args.getInt(EVENT);
+            int addedInfo = args.getInt(EVENT_CAUSE);
+            resMsg.setResultCode(ResultCode.OK);
+            resMsg.setEvent(eventValue, addedInfo);
             break;
         case RES_ID_INPUT:
             StkLog.d(this, "RES_ID_INPUT");
@@ -617,6 +644,14 @@ public class StkAppService extends Service implements Runnable {
                 | Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS
                 | getFlagActivityNoUserAction(InitiatedByUserAction.unknown));
         newIntent.putExtra("TEXT", mCurrentCmd.geTextMessage());
+        startActivity(newIntent);
+    }
+
+    private void launchEventList() {
+        Intent newIntent = new Intent(this, StkEventListActivity.class);
+        newIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK
+                | getFlagActivityNoUserAction(InitiatedByUserAction.unknown));
+        newIntent.putExtra("EVENT", mEventSettings.event.value());
         startActivity(newIntent);
     }
 
@@ -763,6 +798,16 @@ public class StkAppService extends Service implements Runnable {
         startActivity(newIntent);
     }
 
+    private void handleEventList(EventSettings settings) {
+     mEventSettings = settings;
+     switch(settings.event) {
+     case BROWSER_TERMINATION_EVENT:
+        //for future other cases for setup event to be added
+        terminateBrowser = true;
+        break;
+     }
+    }
+
     private String getItemName(int itemId) {
         Menu menu = mCurrentCmd.getMenu();
         if (menu == null) {
@@ -789,4 +834,3 @@ public class StkAppService extends Service implements Runnable {
         return false;
     }
 }
-
