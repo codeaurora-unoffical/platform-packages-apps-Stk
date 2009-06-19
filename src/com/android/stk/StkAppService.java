@@ -396,6 +396,23 @@ public class StkAppService extends Service implements Runnable {
         }
     }
 
+    private void sendScreenBusyResponse() {
+        if (mCurrentCmd == null) {
+            return;
+        }
+        StkResponseMessage resMsg = new StkResponseMessage(mCurrentCmd);
+        StkLog.d(this, "SCREEN_BUSY");
+        resMsg.setResultCode(ResultCode.TERMINAL_CRNTLY_UNABLE_TO_PROCESS);
+        mStkService.onCmdResponse(resMsg);
+        // reset response needed state var to its original value.
+        responseNeeded = true;
+        if (mCmdsQ.size() != 0) {
+            callDelayedMsg();
+        } else {
+            mCmdInProgress = false;
+        }
+    }
+
     private void handleCmd(StkCmdMessage cmdMsg) {
         if (cmdMsg == null) {
             return;
@@ -417,7 +434,16 @@ public class StkAppService extends Service implements Runnable {
                 // TODO: get the carrier name from the SIM
                 msg.title = "";
             }
-            launchTextDialog();
+            //If the device is not in idlescreen and a low priority display
+            //text message command arrives then send screen busy terminal
+            //response with out displaying the message. Otherwise display the
+            //message and get user response.
+            if (!screenIdle && !msg.isHighPriority) {
+                sendScreenBusyResponse();
+            }
+            else {
+                launchTextDialog();
+            }
             break;
         case SELECT_ITEM:
             mCurrentMenu = cmdMsg.getMenu();
