@@ -17,6 +17,9 @@
 
 package com.android.stk;
 
+import android.app.ActivityManager;
+import android.app.ActivityManager.RunningTaskInfo;
+import android.content.ComponentName;
 import android.app.Notification;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
@@ -45,12 +48,15 @@ import com.android.internal.telephony.gsm.stk.ResultCode;
 import com.android.internal.telephony.gsm.stk.StkCmdMessage;
 import com.android.internal.telephony.gsm.stk.StkCmdMessage.BrowserSettings;
 import com.android.internal.telephony.gsm.stk.StkCmdMessage.EventSettings;
+import com.android.internal.telephony.gsm.stk.LaunchBrowserMode;
 import com.android.internal.telephony.gsm.stk.StkLog;
 import com.android.internal.telephony.gsm.stk.StkResponseMessage;
 import com.android.internal.telephony.gsm.stk.TextMessage;
 import com.android.internal.telephony.gsm.stk.SetEventList;
 
+import java.util.Iterator;
 import java.util.LinkedList;
+import java.util.List;
 
 /**
  * SIM toolkit application level service. Interacts with Telephopny messages,
@@ -568,11 +574,22 @@ public class StkAppService extends Service implements Runnable {
                 }
                 break;
             case LAUNCH_BROWSER:
-                resMsg.setResultCode(confirmed ? ResultCode.OK
+                 mBrowserSettings = mCurrentCmd.getBrowserSettings();
+                /* If Launch Browser mode is LAUNCH_IF_NOT_ALREADY_LAUNCHED and if the browser is already launched
+                then send the error code and additional info indicating 'Browser Unavilable'(0x02) */
+                if( (mBrowserSettings.mode ==  LaunchBrowserMode.LAUNCH_IF_NOT_ALREADY_LAUNCHED) &&
+                     confirmed && isBrowserLaunched(mContext)) {
+                        resMsg.setResultCode(ResultCode.LAUNCH_BROWSER_ERROR);
+                        resMsg.setAdditionalInfo(true,0x02);
+                        StkLog.d(this, "LAUNCH_BROWSER_ERROR - Browser_Unavailable");
+                }
+                else {
+                        resMsg.setResultCode(confirmed ? ResultCode.OK
                         : ResultCode.UICC_SESSION_TERM_BY_USER);
+                }
+
                 if (confirmed) {
                     launchBrowser = true;
-                    mBrowserSettings = mCurrentCmd.getBrowserSettings();
                 }
                 break;
             case SET_UP_CALL:
@@ -757,6 +774,26 @@ public class StkAppService extends Service implements Runnable {
         try {
             Thread.sleep(10000);
         } catch (InterruptedException e) {}
+    }
+
+   private boolean isBrowserLaunched(Context context) {
+        int MAX_TASKS = 99;
+        ActivityManager mAcivitytManager = (ActivityManager) context.getSystemService(ACTIVITY_SERVICE);
+        if(mAcivitytManager == null)
+          return false;
+        List<RunningTaskInfo> mRunningTasksList = mAcivitytManager.getRunningTasks(MAX_TASKS);
+        Iterator<RunningTaskInfo> mIterator = mRunningTasksList.iterator();
+        while (mIterator.hasNext()) {
+          RunningTaskInfo mRunningTask = mIterator.next();
+          if (mRunningTask != null) {
+             ComponentName runningTaskComponent = mRunningTask.baseActivity;
+             if(runningTaskComponent.getPackageName().equals("com.android.browser") &&
+                runningTaskComponent.getClassName().equals("com.android.browser.BrowserActivity") ) {
+                  return true;
+             }
+          }
+        }
+        return false;
     }
 
     private void launchCallMsg() {
