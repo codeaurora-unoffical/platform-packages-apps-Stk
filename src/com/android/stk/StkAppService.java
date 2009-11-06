@@ -700,7 +700,9 @@ public class StkAppService extends Service implements Runnable {
 
     private void launchEventMessage() {
         TextMessage msg = mCurrentCmd.geTextMessage();
-        if (msg == null) {
+        // Suppress the Alpha NULL identifier.So checking for
+        // msg.text
+        if (msg == null || msg.text == null) {
             return;
         }
         Toast toast = new Toast(mContext.getApplicationContext());
