@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2007 The Android Open Source Project
+ * Copyright (c) 2009, Code Aurora Forum. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -28,6 +29,7 @@ import android.os.Handler;
 import android.os.IBinder;
 import android.os.Looper;
 import android.os.Message;
+import android.os.Vibrator;
 import android.telephony.TelephonyManager;
 import android.view.Gravity;
 import android.view.LayoutInflater;
@@ -42,6 +44,7 @@ import com.android.internal.telephony.gsm.stk.Menu;
 import com.android.internal.telephony.gsm.stk.Item;
 import com.android.internal.telephony.gsm.stk.ResultCode;
 import com.android.internal.telephony.gsm.stk.StkCmdMessage;
+import com.android.internal.telephony.gsm.stk.ToneSettings;
 import com.android.internal.telephony.gsm.stk.StkCmdMessage.BrowserSettings;
 import com.android.internal.telephony.gsm.stk.StkLog;
 import com.android.internal.telephony.gsm.stk.StkResponseMessage;
@@ -310,8 +313,29 @@ public class StkAppService extends Service implements Runnable {
             case OP_DELAYED_MSG:
                 handleDelayedCmd();
                 break;
+            case MSG_ID_STOP_TONE:
+                StkLog.d(this, "Received MSG_ID_STOP_TONE");
+                handleStopTone();
+                break;
             }
         }
+    }
+
+    private void handleStopTone() {
+        sendResponse(StkAppService.RES_ID_DONE);
+        player.stop();
+        player.release();
+        mVibrator.cancel();
+        StkLog.d(this, "Finished handling PlayTone with Null alpha");
+    }
+
+    private void sendResponse(int resId) {
+        Message msg = mServiceHandler.obtainMessage();
+        msg.arg1 = OP_RESPONSE;
+        Bundle args = new Bundle();
+        args.putInt(StkAppService.RES_ID, resId);
+        msg.obj = args;
+        mServiceHandler.sendMessage(msg);
     }
 
     private boolean isCmdInteractive(StkCmdMessage cmd) {
@@ -722,14 +746,49 @@ public class StkAppService extends Service implements Runnable {
     }
 
     private void launchToneDialog() {
-        Intent newIntent = new Intent(this, ToneDialog.class);
-        newIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK
-                | Intent.FLAG_ACTIVITY_NO_HISTORY
-                | Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS
-                | getFlagActivityNoUserAction(InitiatedByUserAction.unknown));
-        newIntent.putExtra("TEXT", mCurrentCmd.geTextMessage());
-        newIntent.putExtra("TONE", mCurrentCmd.getToneSettings());
-        startActivity(newIntent);
+        TextMessage toneMsg = mCurrentCmd.geTextMessage();
+        ToneSettings settings = mCurrentCmd.getToneSettings();
+        // Start activity only when there is alpha data otherwise play tone
+        if (toneMsg.text != null) {
+            StkLog.d(this, "toneMsg.text: " + toneMsg.text + " Starting Activity");
+            Intent newIntent = new Intent(this, ToneDialog.class);
+            newIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_NO_HISTORY
+                    | Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS
+                    | getFlagActivityNoUserAction(InitiatedByUserAction.unknown));
+            newIntent.putExtra("TEXT", toneMsg);
+            newIntent.putExtra("TONE", settings);
+            StkLog.d(this, "Starting Activity based on the ToneDialog Intent");
+            startActivity(newIntent);
+        } else {
+            StkLog.d(this, "toneMsg.text: " + toneMsg.text + " NO Activity, play tone");
+            onPlayToneNullAlphaTag(toneMsg, settings);
+        }
+    }
+
+    TonePlayer player = null;
+
+    Vibrator mVibrator = new Vibrator();
+
+    // Message id to signal tone duration timeout.
+    private static final int MSG_ID_STOP_TONE = 0xda;
+
+    private void onPlayToneNullAlphaTag(TextMessage toneMsg, ToneSettings settings) {
+        // Start playing tone and vibration
+        player = new TonePlayer();
+        StkLog.d(this, "Play tone settings.tone:" + settings.tone);
+        player.play(settings.tone);
+        int timeout = StkApp.calculateDurationInMilis(settings.duration);
+        StkLog.d(this, "ToneDialog: Tone timeout :" + timeout);
+        if (timeout == 0) {
+            timeout = StkApp.TONE_DFEAULT_TIMEOUT;
+        }
+        Message msg = mServiceHandler.obtainMessage();
+        msg.arg1 = MSG_ID_STOP_TONE;
+        // trigger tone stop after timeout duration
+        mServiceHandler.sendMessageDelayed(msg, timeout);
+        if (settings.vibrate) {
+            mVibrator.vibrate(timeout);
+        }
     }
 
     private String getItemName(int itemId) {
