@@ -29,6 +29,7 @@ import android.view.View;
 import android.view.Window;
 import android.widget.Button;
 import android.widget.TextView;
+import com.android.internal.telephony.gsm.stk.StkLog;
 
 /**
  * AlretDialog used for DISPLAY TEXT commands.
@@ -37,7 +38,7 @@ import android.widget.TextView;
 public class StkDialogActivity extends Activity implements View.OnClickListener {
     // members
     TextMessage mTextMsg;
-
+    int  dialogDuration = 0;
     Handler mTimeoutHandler = new Handler() {
         @Override
         public void handleMessage(Message msg) {
@@ -126,7 +127,17 @@ public class StkDialogActivity extends Activity implements View.OnClickListener 
     @Override
     public void onResume() {
         super.onResume();
-
+        /*
+         * In case of high priority, wait for user to clear and duration 0 the
+         * Display Text should be displayed to user for ever until some high priority
+         * event occurred (incoming call, MMI code execution etc as mentioned under
+         * section ETSI 102.223, 6.4.1)
+         */
+        dialogDuration = StkApp.calculateDurationInMilis(mTextMsg.duration);
+        if (dialogDuration == 0 && mTextMsg.isHighPriority && mTextMsg.userClear) {
+            StkLog.d(this, "High priority message, user should clear text..show for ever");
+            return;
+        }
         startTimeOut();
     }
 
@@ -179,7 +190,6 @@ public class StkDialogActivity extends Activity implements View.OnClickListener 
     private void startTimeOut() {
         // Reset timeout.
         cancelTimeOut();
-        int dialogDuration = StkApp.calculateDurationInMilis(mTextMsg.duration);
         if (dialogDuration == 0) {
             dialogDuration = StkApp.UI_TIMEOUT;
         }
