@@ -692,6 +692,8 @@ public class StkAppService extends Service implements Runnable {
             intent.addFlags(Intent.FLAG_ACTIVITY_MULTIPLE_TASK);
             break;
         case LAUNCH_IF_NOT_ALREADY_LAUNCHED:
+            if(data != null)
+                intent.setAction(Intent.ACTION_VIEW);
             intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
             break;
         }
