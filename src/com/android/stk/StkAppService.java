@@ -98,6 +98,7 @@ public class StkAppService extends Service implements Runnable {
     static final String INPUT = "input";
     static final String HELP = "help";
     static final String CONFIRMATION = "confirm";
+    static final String SCREEN_STATUS = "screen status";
 
     // operations ids for different service functionality.
     static final int OP_CMD = 1;
@@ -106,6 +107,7 @@ public class StkAppService extends Service implements Runnable {
     static final int OP_END_SESSION = 4;
     static final int OP_BOOT_COMPLETED = 5;
     private static final int OP_DELAYED_MSG = 6;
+    static final int OP_IDLE_SCREEN = 7;
 
     // Response ids
     static final int RES_ID_MENU_SELECTION = 11;
@@ -126,6 +128,8 @@ public class StkAppService extends Service implements Runnable {
 
     // Notification id used to display Idle Mode text in NotificationManager.
     private static final int STK_NOTIFICATION_ID = 333;
+    private TextMessage idleModeText;
+    private boolean screenIdle = true;
 
     // Inner class used for queuing telephony messages (proactive commands,
     // session end) while the service is busy processing a previous message.
@@ -189,6 +193,7 @@ public class StkAppService extends Service implements Runnable {
             msg.obj = args.getParcelable(CMD_MSG);
             break;
         case OP_RESPONSE:
+        case OP_IDLE_SCREEN:
             msg.obj = args;
             /* falls through */
         case OP_LAUNCH_APP:
@@ -318,6 +323,13 @@ public class StkAppService extends Service implements Runnable {
                 break;
             case OP_DELAYED_MSG:
                 handleDelayedCmd();
+                break;
+            case OP_IDLE_SCREEN:
+                Bundle args = ((Bundle) msg.obj);
+                screenIdle = args.getBoolean (SCREEN_STATUS);
+                if (idleModeText != null) {
+                    launchIdleModeText();
+                }
                 break;
             case MSG_ID_STOP_TONE:
                 StkLog.d(this, "Received MSG_ID_STOP_TONE");
@@ -454,7 +466,17 @@ public class StkAppService extends Service implements Runnable {
             break;
         case SET_UP_IDLE_MODE_TEXT:
             waitForUsersResponse = false;
-            launchIdleText();
+            idleModeText = mCurrentCmd.geTextMessage();
+            // Send intent to ActivityManagerService to get the screen status
+            Intent idleStkIntent  = new Intent(AppInterface.CHECK_SCREEN_IDLE_ACTION);
+            if (idleModeText != null) {
+                idleStkIntent.putExtra("SCREEN_STATUS_REQUEST",true);
+            } else {
+                idleStkIntent.putExtra("SCREEN_STATUS_REQUEST",false);
+                launchIdleModeText();
+            }
+            StkLog.d(this, "set up idle mode");
+            sendBroadcast(idleStkIntent);
             break;
         case SEND_DTMF:
         case SEND_SMS:
@@ -775,11 +797,16 @@ public class StkAppService extends Service implements Runnable {
         toast.show();
     }
 
-    private void launchIdleText() {
-        TextMessage msg = mCurrentCmd.geTextMessage();
+    private void launchIdleModeText() {
+        TextMessage msg = idleModeText;
         if (msg.text == null) {
             mNotificationManager.cancel(STK_NOTIFICATION_ID);
         } else {
+            if (screenIdle == false) {
+                mNotificationManager.cancel(STK_NOTIFICATION_ID);
+                return;
+            }
+
             Notification notification = new Notification();
             RemoteViews contentView = new RemoteViews(
                     PACKAGE_NAME,
@@ -804,9 +831,9 @@ public class StkAppService extends Service implements Runnable {
                         msg.icon);
             } else {
                 contentView
-                        .setImageViewResource(
-                                com.android.internal.R.id.icon,
-                                com.android.internal.R.drawable.stat_notify_sim_toolkit);
+                    .setImageViewResource(
+                            com.android.internal.R.id.icon,
+                            com.android.internal.R.drawable.stat_notify_sim_toolkit);
             }
             notification.contentView = contentView;
             notification.contentIntent = PendingIntent.getService(mContext, 0,
