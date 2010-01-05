@@ -123,6 +123,7 @@ public class StkAppService extends Service implements Runnable {
     // Notification id used to display Idle Mode text in NotificationManager.
     private static final int STK_NOTIFICATION_ID = 333;
     private TextMessage idleModeText;
+    private boolean mDisplayText = false;
     private boolean screenIdle = true;
 
     // Inner class used for queuing telephony messages (proactive commands,
@@ -324,6 +325,21 @@ public class StkAppService extends Service implements Runnable {
                 if (idleModeText != null) {
                     launchIdleModeText();
                 }
+                if (mDisplayText) {
+                    if (!screenIdle) {
+                        sendScreenBusyResponse();
+                    } else {
+                        launchTextDialog();
+                    }
+                    mDisplayText = false;
+                    // If an idle text proactive command is set then the
+                    // request for getting screen status still holds true.
+                    if (idleModeText == null) {
+                        Intent StkIntent = new Intent(AppInterface.CHECK_SCREEN_IDLE_ACTION);
+                        StkIntent.putExtra("SCREEN_STATUS_REQUEST",false);
+                        sendBroadcast(StkIntent);
+                    }
+                }
                 break;
             case MSG_ID_STOP_TONE:
                 StkLog.d(this, "Received MSG_ID_STOP_TONE");
@@ -407,6 +423,23 @@ public class StkAppService extends Service implements Runnable {
         }
     }
 
+    private void sendScreenBusyResponse() {
+        if (mCurrentCmd == null) {
+            return;
+        }
+        StkResponseMessage resMsg = new StkResponseMessage(mCurrentCmd);
+        StkLog.d(this, "SCREEN_BUSY");
+        resMsg.setResultCode(ResultCode.TERMINAL_CRNTLY_UNABLE_TO_PROCESS);
+        mStkService.onCmdResponse(resMsg);
+        // reset response needed state var to its original value.
+        responseNeeded = true;
+        if (mCmdsQ.size() != 0) {
+            callDelayedMsg();
+        } else {
+            mCmdInProgress = false;
+        }
+    }
+
     private void handleCmd(StkCmdMessage cmdMsg) {
         if (cmdMsg == null) {
             return;
@@ -428,7 +461,18 @@ public class StkAppService extends Service implements Runnable {
                 // TODO: get the carrier name from the SIM
                 msg.title = "";
             }
-            launchTextDialog();
+            //If the device is not in idlescreen and a low priority display
+            //text message command arrives then send screen busy terminal
+            //response with out displaying the message. Otherwise display the
+            //message.
+            if (!msg.isHighPriority) {
+                Intent StkIntent = new Intent(AppInterface.CHECK_SCREEN_IDLE_ACTION);
+                StkIntent.putExtra("SCREEN_STATUS_REQUEST",true);
+                sendBroadcast(StkIntent);
+                mDisplayText = true;
+            } else {
+                launchTextDialog();
+            }
             break;
         case SELECT_ITEM:
             mCurrentMenu = cmdMsg.getMenu();
