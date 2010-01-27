@@ -454,10 +454,9 @@ public class StkAppService extends Service implements Runnable {
         switch (cmdMsg.getCmdType()) {
         case DISPLAY_TEXT:
             TextMessage msg = cmdMsg.geTextMessage();
-            responseNeeded = msg.responseNeeded;
 
             // In case when TR already sent no response is expected by Stk app
-            if (!responseNeeded) {
+            if (!msg.responseNeeded) {
                 waitForUsersResponse = false;
             }
             if (lastSelectedItem != null) {
