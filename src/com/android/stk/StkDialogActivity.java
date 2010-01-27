@@ -103,11 +103,15 @@ public class StkDialogActivity extends Activity implements View.OnClickListener 
 
         switch (v.getId()) {
         case OK_BUTTON:
-            sendResponse(StkAppService.RES_ID_CONFIRM, true);
+            if (mTextMsg.responseNeeded) {
+                sendResponse(StkAppService.RES_ID_CONFIRM, true);
+            }
             finish();
             break;
         case CANCEL_BUTTON:
-            sendResponse(StkAppService.RES_ID_CONFIRM, false);
+            if (mTextMsg.responseNeeded) {
+                sendResponse(StkAppService.RES_ID_CONFIRM, false);
+            }
             finish();
             break;
         }
