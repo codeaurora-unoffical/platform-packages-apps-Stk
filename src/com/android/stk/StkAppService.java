@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2007 The Android Open Source Project
- * Copyright (c) 2009, Code Aurora Forum. All rights reserved.
+ * Copyright (c) 2010, Code Aurora Forum. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -568,7 +568,8 @@ public class StkAppService extends Service implements Runnable {
                 if (helpRequired) {
                     resMsg.setResultCode(ResultCode.HELP_INFO_REQUIRED);
                 } else {
-                    resMsg.setResultCode(ResultCode.OK);
+                    resMsg.setResultCode( mCurrentCmd.getLoadOptionalIconFailed()? ResultCode.PRFRMD_ICON_NOT_DISPLAYED
+                                        : ResultCode.OK);
                 }
                 resMsg.setMenuSelection(menuSelection);
                 break;
@@ -585,7 +586,8 @@ public class StkAppService extends Service implements Runnable {
                 if (helpRequired) {
                     resMsg.setResultCode(ResultCode.HELP_INFO_REQUIRED);
                 } else {
-                    resMsg.setResultCode(ResultCode.OK);
+                    resMsg.setResultCode( mCurrentCmd.getLoadOptionalIconFailed()? ResultCode.PRFRMD_ICON_NOT_DISPLAYED
+                                        : ResultCode.OK);
                     resMsg.setInput(input);
                 }
             }
@@ -595,8 +597,13 @@ public class StkAppService extends Service implements Runnable {
             boolean confirmed = args.getBoolean(CONFIRMATION);
             switch (mCurrentCmd.getCmdType()) {
             case DISPLAY_TEXT:
-                resMsg.setResultCode(confirmed ? ResultCode.OK
-                        : ResultCode.UICC_SESSION_TERM_BY_USER);
+		if(confirmed){
+                   resMsg.setResultCode( mCurrentCmd.getLoadOptionalIconFailed()? ResultCode.PRFRMD_ICON_NOT_DISPLAYED
+                                       : ResultCode.OK);
+                }
+                else{
+                   resMsg.setResultCode(ResultCode.UICC_SESSION_TERM_BY_USER);
+                }
                 break;
             case LAUNCH_BROWSER:
                 mBrowserSettings = mCurrentCmd.getBrowserSettings();
@@ -734,7 +741,14 @@ public class StkAppService extends Service implements Runnable {
         } else {
             iv.setVisibility(View.GONE);
         }
-        if (!msg.iconSelfExplanatory) {
+
+        /** This is the case to handle icon identifier 'self-explanatory'.
+         ** In case of 'self explanatory' stkapp should display the specified
+         ** icon in proactive command (but not the alpha string).
+         ** But, Android at present doesn't support ICON display. So, considering the
+         ** self explanatory case as non-self explanatory and displaying the
+         ** alpha string always. Refer to TS ETSI 102 223 6.5.4  */
+        if (!msg.iconSelfExplanatory || mCurrentCmd.getLoadOptionalIconFailed()) {
             tv.setText(msg.text);
         }
 
@@ -845,8 +859,14 @@ public class StkAppService extends Service implements Runnable {
 
             notification.flags |= Notification.FLAG_NO_CLEAR;
             notification.icon = com.android.internal.R.drawable.stat_notify_sim_toolkit;
-            // Set text and icon for the status bar and notification body.
-            if (!msg.iconSelfExplanatory) {
+
+           /** This is the case to handle icon identifier 'self-explanatory'.
+            ** In case of 'self explanatory' stkapp should display the specified
+            ** icon in proactive command (but not the alpha string).
+            ** But, Android at present doesn't support ICON display. So, considering the
+            ** self explanatory case as non-self explanatory and displaying the
+            ** alpha string always. Refer to TS ETSI 102 223 6.5.4  */
+            if (!msg.iconSelfExplanatory || mCurrentCmd.getLoadOptionalIconFailed()) {
                 notification.tickerText = msg.text;
                 contentView.setTextViewText(com.android.internal.R.id.text,
                         msg.text);
