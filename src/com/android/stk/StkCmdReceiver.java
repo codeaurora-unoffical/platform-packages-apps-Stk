@@ -17,7 +17,7 @@
 package com.android.stk;
 
 import com.android.internal.telephony.gsm.stk.AppInterface;
-
+import static com.android.internal.telephony.gsm.stk.StkCmdMessage.SetupEventListConstants.*;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
@@ -38,6 +38,10 @@ public class StkCmdReceiver extends BroadcastReceiver {
         } else if (action.equals(AppInterface.STK_SESSION_END_ACTION)) {
             handleSessionEnd(context, intent);
         }
+        if (action.equals(AppInterface.BROWSER_TERMINATE_ACTION)) {
+            handleBrowserTerminationEvent(context,intent);
+        }
+
         if (action.equals(AppInterface.STK_IDLE_SCREEN_ACTION)) {
             screenIdle  = intent.getBooleanExtra("SCREEN_IDLE",true);
             handleScreenStatus(context);
@@ -56,6 +60,17 @@ public class StkCmdReceiver extends BroadcastReceiver {
     private void handleSessionEnd(Context context, Intent intent) {
         Bundle args = new Bundle();
         args.putInt(StkAppService.OPCODE, StkAppService.OP_END_SESSION);
+        context.startService(new Intent(context, StkAppService.class)
+                .putExtras(args));
+    }
+
+    private void handleBrowserTerminationEvent(Context context,Intent intent) {
+        Bundle args = new Bundle();
+        int browserTerminationCause = USER_TERMINATION;
+
+        args.putInt(StkAppService.OPCODE, StkAppService.OP_BROWSER_TERMINATION);
+        browserTerminationCause = intent.getIntExtra(AppInterface.BROWSER_TERMINATION_CAUSE, USER_TERMINATION);
+        args.putInt(AppInterface.BROWSER_TERMINATION_CAUSE, browserTerminationCause);
         context.startService(new Intent(context, StkAppService.class)
                 .putExtras(args));
     }
