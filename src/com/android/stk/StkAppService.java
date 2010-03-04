@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2007 The Android Open Source Project
- * Copyright (c) 2010, Code Aurora Forum. All rights reserved.
+ * Copyright (c) 2009-10, Code Aurora Forum. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -53,6 +53,9 @@ import com.android.internal.telephony.gsm.stk.LaunchBrowserMode;
 import com.android.internal.telephony.gsm.stk.StkLog;
 import com.android.internal.telephony.gsm.stk.StkResponseMessage;
 import com.android.internal.telephony.gsm.stk.TextMessage;
+import com.android.internal.telephony.gsm.stk.LaunchBrowserMode;
+import com.android.internal.telephony.gsm.stk.StkCmdMessage.SetupEventListSettings;
+import static com.android.internal.telephony.gsm.stk.StkCmdMessage.SetupEventListConstants.*;
 
 import java.util.LinkedList;
 import java.util.List;
@@ -82,6 +85,7 @@ public class StkAppService extends Service implements Runnable {
     private boolean launchBrowser = false;
     private BrowserSettings mBrowserSettings = null;
     static StkAppService sInstance = null;
+    private SetupEventListSettings mSetupEventListSettings = null;
 
     // Used for setting FLAG_ACTIVITY_NO_USER_ACTION when
     // creating an intent.
@@ -100,6 +104,10 @@ public class StkAppService extends Service implements Runnable {
     static final String CONFIRMATION = "confirm";
     static final String SCREEN_STATUS = "screen status";
 
+    // These below constants are used for SETUP_EVENT_LIST
+    static final String SETUP_EVENT_TYPE = "event";
+    static final String SETUP_EVENT_CAUSE = "cause";
+
     // operations ids for different service functionality.
     static final int OP_CMD = 1;
     static final int OP_RESPONSE = 2;
@@ -108,12 +116,14 @@ public class StkAppService extends Service implements Runnable {
     static final int OP_BOOT_COMPLETED = 5;
     private static final int OP_DELAYED_MSG = 6;
     static final int OP_IDLE_SCREEN = 7;
+    static final int OP_BROWSER_TERMINATION = 8;
 
     // Response ids
     static final int RES_ID_MENU_SELECTION = 11;
     static final int RES_ID_INPUT = 12;
     static final int RES_ID_CONFIRM = 13;
     static final int RES_ID_DONE = 14;
+    static final int RES_ID_SETUP_EVENT_LIST = 15;
 
     static final int RES_ID_TIMEOUT = 20;
     static final int RES_ID_BACKWARD = 21;
@@ -195,6 +205,7 @@ public class StkAppService extends Service implements Runnable {
             break;
         case OP_RESPONSE:
         case OP_IDLE_SCREEN:
+        case OP_BROWSER_TERMINATION:
             msg.obj = args;
             /* falls through */
         case OP_LAUNCH_APP:
@@ -325,6 +336,10 @@ public class StkAppService extends Service implements Runnable {
             case OP_DELAYED_MSG:
                 handleDelayedCmd();
                 break;
+            case OP_BROWSER_TERMINATION:
+                StkLog.d(this, "Browser Closed");
+                handleSetupEventList(BROWSER_TERMINATION_EVENT,(Bundle) msg.obj);
+                break;
             case OP_IDLE_SCREEN:
                 Bundle args = ((Bundle) msg.obj);
                 screenIdle = args.getBoolean (SCREEN_STATUS);
@@ -380,6 +395,7 @@ public class StkAppService extends Service implements Runnable {
         case SEND_USSD:
         case SET_UP_IDLE_MODE_TEXT:
         case SET_UP_MENU:
+        case SET_UP_EVENT_LIST:
             return false;
         }
 
@@ -538,6 +554,9 @@ public class StkAppService extends Service implements Runnable {
         case PLAY_TONE:
             launchToneDialog();
             break;
+        case SET_UP_EVENT_LIST:
+            mSetupEventListSettings = mCurrentCmd.getSetEventList();
+            break;
         }
 
         if (!waitForUsersResponse) {
@@ -575,6 +594,13 @@ public class StkAppService extends Service implements Runnable {
                 resMsg.setMenuSelection(menuSelection);
                 break;
             }
+            break;
+        case RES_ID_SETUP_EVENT_LIST:
+            StkLog.d(this, "RES_ID_SETUP_EVENT_LIST");
+            int eventValue = args.getInt(SETUP_EVENT_TYPE);
+            byte[] addedInfo = args.getByteArray(SETUP_EVENT_CAUSE);
+            resMsg.setResultCode(ResultCode.OK);
+            resMsg.setEventDownload(eventValue, addedInfo);
             break;
         case RES_ID_INPUT:
             StkLog.d(this, "RES_ID_INPUT");
@@ -720,6 +746,51 @@ public class StkAppService extends Service implements Runnable {
                 | getFlagActivityNoUserAction(InitiatedByUserAction.unknown));
         newIntent.putExtra("TEXT", mCurrentCmd.geTextMessage());
         startActivity(newIntent);
+    }
+
+    private void sendSetUpEventResponse(int event, byte[] addedInfo) {
+        Message msg = mServiceHandler.obtainMessage();
+        msg.arg1 = OP_RESPONSE;
+        Bundle args = new Bundle();
+        args.putInt(StkAppService.SETUP_EVENT_TYPE,event);
+        args.putByteArray(StkAppService.SETUP_EVENT_CAUSE,addedInfo);
+        args.putInt(StkAppService.RES_ID, RES_ID_SETUP_EVENT_LIST);
+        msg.obj = args;
+        mServiceHandler.sendMessage(msg);
+    }
+
+    private void handleSetupEventList(int event, Bundle args) {
+
+        boolean eventPresent = false;
+        byte[] addedInfo;
+        StkLog.d(this, "Event :" + event);
+
+        /* Checks if the event is present in the EventList updated by last
+         * SetupEventList Proactive Command */
+        for (int i = 0; i < mSetupEventListSettings.eventList.length; i++) {
+             if (event == mSetupEventListSettings.eventList[i]) {
+                 eventPresent =  true;
+                 break;
+             }
+        }
+
+        /* If Event is present send the response to ICC */
+        if (eventPresent == true) {
+            StkLog.d(this, " Event " + event + "exists in the EventList");
+            addedInfo = new byte[MAX_ADDED_EVENT_DOWNLOAD_LEN];
+            switch (event) {
+                case BROWSER_TERMINATION_EVENT:
+                    int browserTerminationCause = args.getInt(AppInterface.BROWSER_TERMINATION_CAUSE);
+                    StkLog.d(this, "BrowserTerminationCause: "+ browserTerminationCause);
+                    addedInfo[0] = (byte) browserTerminationCause;
+                    sendSetUpEventResponse(event, addedInfo);
+                    break;
+                default:
+                    break;
+            }
+        } else {
+            StkLog.d(this, " Event does not exist in the EventList");
+        }
     }
 
     private void launchEventMessage() {
