@@ -764,31 +764,38 @@ public class StkAppService extends Service implements Runnable {
         byte[] addedInfo;
         StkLog.d(this, "Event :" + event);
 
-        /* Checks if the event is present in the EventList updated by last
-         * SetupEventList Proactive Command */
-        for (int i = 0; i < mSetupEventListSettings.eventList.length; i++) {
-             if (event == mSetupEventListSettings.eventList[i]) {
-                 eventPresent =  true;
-                 break;
-             }
-        }
+        if (mSetupEventListSettings != null) {
+            /*
+             * Checks if the event is present in the EventList updated by last
+             * SetupEventList Proactive Command
+             */
+            for (int i = 0; i < mSetupEventListSettings.eventList.length; i++) {
+                if (event == mSetupEventListSettings.eventList[i]) {
+                    eventPresent = true;
+                    break;
+                }
+            }
 
-        /* If Event is present send the response to ICC */
-        if (eventPresent == true) {
-            StkLog.d(this, " Event " + event + "exists in the EventList");
-            addedInfo = new byte[MAX_ADDED_EVENT_DOWNLOAD_LEN];
-            switch (event) {
-                case BROWSER_TERMINATION_EVENT:
-                    int browserTerminationCause = args.getInt(AppInterface.BROWSER_TERMINATION_CAUSE);
-                    StkLog.d(this, "BrowserTerminationCause: "+ browserTerminationCause);
-                    addedInfo[0] = (byte) browserTerminationCause;
-                    sendSetUpEventResponse(event, addedInfo);
-                    break;
-                default:
-                    break;
+            /* If Event is present send the response to ICC */
+            if (eventPresent == true) {
+                StkLog.d(this, " Event " + event + "exists in the EventList");
+                addedInfo = new byte[MAX_ADDED_EVENT_DOWNLOAD_LEN];
+                switch (event) {
+                    case BROWSER_TERMINATION_EVENT:
+                        int browserTerminationCause = args
+                                .getInt(AppInterface.BROWSER_TERMINATION_CAUSE);
+                        StkLog.d(this, "BrowserTerminationCause: " + browserTerminationCause);
+                        addedInfo[0] = (byte) browserTerminationCause;
+                        sendSetUpEventResponse(event, addedInfo);
+                        break;
+                    default:
+                        break;
+                }
+            } else {
+                StkLog.d(this, " Event does not exist in the EventList");
             }
         } else {
-            StkLog.d(this, " Event does not exist in the EventList");
+            StkLog.d(this, "SetupEventList is not received. Ignoring the event: " + event);
         }
     }
 
