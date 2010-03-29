@@ -86,6 +86,7 @@ public class StkAppService extends Service implements Runnable {
     private BrowserSettings mBrowserSettings = null;
     static StkAppService sInstance = null;
     private EventSettings mEventSettings = null;
+    private boolean mClearSelectItem = false;
 
     // Used for setting FLAG_ACTIVITY_NO_USER_ACTION when
     // creating an intent.
@@ -243,6 +244,14 @@ public class StkAppService extends Service implements Runnable {
      */
     Menu getMenu() {
         return mCurrentMenu;
+    }
+
+    /*
+     * Package api used by StkMenuActivity to check if SelectItem needs to be
+     * cleaned.
+     */
+    boolean isClearSelectItem() {
+        return mClearSelectItem;
     }
 
     /*
@@ -410,9 +419,14 @@ public class StkAppService extends Service implements Runnable {
         if (mCurrentMenu != null && mMainCmd != null) {
             mCurrentMenu = mMainCmd.getMenu();
         }
-        if (mMenuIsVisibile) {
+        // In some scenarios race condition occurs. Where finish() is called
+        // for SELECT_ITEM in STKMenuActivity but not destroyed.
+        StkLog.d(this, "mMenuIsVisibile: " + mMenuIsVisibile + " mClearSelectItem: "
+                + mClearSelectItem);
+        if (mMenuIsVisibile && !mClearSelectItem) {
             launchMenuActivity(null);
         }
+        mClearSelectItem = false;
         if (mCmdsQ.size() != 0) {
             callDelayedMsg();
         } else {
@@ -470,8 +484,11 @@ public class StkAppService extends Service implements Runnable {
             //If the device is not in idlescreen and a low priority display
             //text message command arrives then send screen busy terminal
             //response with out displaying the message. Otherwise display the
-            //message and get user response.
-            if (!screenIdle && !msg.isHighPriority) {
+            //message and get user response. If StkMenu is occupying the screen,
+            //display the text irrespective of the priority of the display.
+            StkLog.d(this, "ScreenIdle: " + screenIdle + " mMenuIsVisibile: " + mMenuIsVisibile
+                    + " isHighPriority: " + msg.isHighPriority);
+            if (!(screenIdle || mMenuIsVisibile) && !msg.isHighPriority)  {
                 sendScreenBusyResponse();
             }
             else {
@@ -480,6 +497,12 @@ public class StkAppService extends Service implements Runnable {
             break;
         case SELECT_ITEM:
             mCurrentMenu = cmdMsg.getMenu();
+            // Check if STkMenuActivity is already active, else clean
+            // the SELECT_ITEM after user selects an item.
+            if (!mMenuIsVisibile) {
+                StkLog.d(this, "Clear SelectItem after user selection");
+                mClearSelectItem = true;
+            }
             launchMenuActivity(cmdMsg.getMenu());
             break;
         case SET_UP_MENU:
@@ -659,6 +682,7 @@ public class StkAppService extends Service implements Runnable {
             return;
         }
         mStkService.onCmdResponse(resMsg);
+        handleSessionEnd();
     }
 
     /**
