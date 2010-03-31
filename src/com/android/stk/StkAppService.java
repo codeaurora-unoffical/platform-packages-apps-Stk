@@ -530,6 +530,7 @@ public class StkAppService extends Service implements Runnable {
             idleModeText = mCurrentCmd.geTextMessage();
             idleModeValid = true;
             launchIdleModeText(screenIdle);
+            mCurrentCmd = mMainCmd;
             break;
         case SEND_DTMF:
         case SEND_SMS:
@@ -537,6 +538,7 @@ public class StkAppService extends Service implements Runnable {
         case SEND_USSD:
             waitForUsersResponse = false;
             launchEventMessage();
+            mCurrentCmd = mMainCmd;
             break;
         case LAUNCH_BROWSER:
             launchConfirmationDialog(mCurrentCmd.geTextMessage());
@@ -549,6 +551,7 @@ public class StkAppService extends Service implements Runnable {
             break;
         case SET_UP_EVENT_LIST:
             handleEventList(mCurrentCmd.getSetEventList());
+            mCurrentCmd = mMainCmd;
             break;
         }
 
