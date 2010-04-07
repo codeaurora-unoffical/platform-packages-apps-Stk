@@ -86,6 +86,7 @@ public class StkAppService extends Service implements Runnable {
     private BrowserSettings mBrowserSettings = null;
     static StkAppService sInstance = null;
     private SetupEventListSettings mSetupEventListSettings = null;
+    private boolean mClearSelectItem = false;
 
     // Used for setting FLAG_ACTIVITY_NO_USER_ACTION when
     // creating an intent.
@@ -250,6 +251,14 @@ public class StkAppService extends Service implements Runnable {
      */
     Menu getMenu() {
         return mCurrentMenu;
+    }
+
+    /*
+     * Package api used by StkMenuActivity to check if SelectItem needs to be
+     * cleaned.
+     */
+    boolean isClearSelectItem() {
+        return mClearSelectItem;
     }
 
     /*
@@ -430,9 +439,14 @@ public class StkAppService extends Service implements Runnable {
         if (mCurrentMenu != null && mMainCmd != null) {
             mCurrentMenu = mMainCmd.getMenu();
         }
-        if (mMenuIsVisibile) {
+        // In some scenarios race condition occurs. Where finish() is called
+        // for SELECT_ITEM in STKMenuActivity but not destroyed.
+        StkLog.d(this, "mMenuIsVisibile: " + mMenuIsVisibile + " mClearSelectItem: "
+                + mClearSelectItem);
+        if (mMenuIsVisibile && !mClearSelectItem) {
             launchMenuActivity(null);
         }
+        mClearSelectItem = false;
         if (mCmdsQ.size() != 0) {
             callDelayedMsg();
         } else {
@@ -491,7 +505,7 @@ public class StkAppService extends Service implements Runnable {
             //text message command arrives then send screen busy terminal
             //response with out displaying the message. Otherwise display the
             //message.
-            if (!msg.isHighPriority) {
+            if (!(msg.isHighPriority || mMenuIsVisibile)) {
                 Intent StkIntent = new Intent(AppInterface.CHECK_SCREEN_IDLE_ACTION);
                 StkIntent.putExtra("SCREEN_STATUS_REQUEST",true);
                 sendBroadcast(StkIntent);
@@ -502,6 +516,12 @@ public class StkAppService extends Service implements Runnable {
             break;
         case SELECT_ITEM:
             mCurrentMenu = cmdMsg.getMenu();
+            // Check if STkMenuActivity is already active, else clean
+            // the SELECT_ITEM after user selects an item.
+            if (!mMenuIsVisibile) {
+                StkLog.d(this, "Clear SelectItem after user selection");
+                mClearSelectItem = true;
+            }
             launchMenuActivity(cmdMsg.getMenu());
             break;
         case SET_UP_MENU:
@@ -536,6 +556,7 @@ public class StkAppService extends Service implements Runnable {
                 launchIdleModeText();
             }
             StkLog.d(this, "set up idle mode");
+            mCurrentCmd = mMainCmd;
             sendBroadcast(idleStkIntent);
             break;
         case SEND_DTMF:
@@ -544,6 +565,7 @@ public class StkAppService extends Service implements Runnable {
         case SEND_USSD:
             waitForUsersResponse = false;
             launchEventMessage();
+            mCurrentCmd = mMainCmd;
             break;
         case LAUNCH_BROWSER:
             launchConfirmationDialog(mCurrentCmd.geTextMessage());
@@ -556,6 +578,7 @@ public class StkAppService extends Service implements Runnable {
             break;
         case SET_UP_EVENT_LIST:
             mSetupEventListSettings = mCurrentCmd.getSetEventList();
+            mCurrentCmd = mMainCmd;
             break;
         }
 
@@ -690,6 +713,7 @@ public class StkAppService extends Service implements Runnable {
             return;
         }
         mStkService.onCmdResponse(resMsg);
+        handleSessionEnd();
     }
 
     /**
