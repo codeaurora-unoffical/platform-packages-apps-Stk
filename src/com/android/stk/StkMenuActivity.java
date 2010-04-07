@@ -329,5 +329,10 @@ public class StkMenuActivity extends ListActivity {
         args.putBoolean(StkAppService.HELP, help);
         mContext.startService(new Intent(mContext, StkAppService.class)
                 .putExtras(args));
+        // Check if SelectItem needs to be cleared.
+        if (appService.isClearSelectItem()) {
+            StkLog.d(this, "Cleaning SELECT ITEM menu");
+            finish();
+        }
     }
 }
