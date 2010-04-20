@@ -132,14 +132,14 @@ public class StkDialogActivity extends Activity implements View.OnClickListener 
     public void onResume() {
         super.onResume();
         /*
-         * In case of high priority, wait for user to clear and duration 0 the
-         * Display Text should be displayed to user for ever until some high priority
-         * event occurred (incoming call, MMI code execution etc as mentioned under
-         * section ETSI 102.223, 6.4.1)
+         * If userClear flag is set and dialogduration is set to 0, display Text
+         * should be displayed to user for ever until some high priority event occurred
+         * (incoming call, MMI code execution etc as mentioned under section
+         * ETSI 102.223, 6.4.1)
          */
         dialogDuration = StkApp.calculateDurationInMilis(mTextMsg.duration);
-        if (dialogDuration == 0 && mTextMsg.isHighPriority && mTextMsg.userClear) {
-            StkLog.d(this, "High priority message, user should clear text..show for ever");
+        if (dialogDuration == 0 && mTextMsg.userClear) {
+            StkLog.d(this, "userClearFlag set");
             return;
         }
         startTimeOut();
