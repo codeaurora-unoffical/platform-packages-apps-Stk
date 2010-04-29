@@ -32,6 +32,7 @@ import android.os.Handler;
 import android.os.IBinder;
 import android.os.Looper;
 import android.os.Message;
+import android.os.SystemProperties;
 import android.os.Vibrator;
 import android.telephony.TelephonyManager;
 import android.view.Gravity;
@@ -185,6 +186,14 @@ public class StkAppService extends Service implements Runnable {
 
     @Override
     public void onStart(Intent intent, int startId) {
+
+        /*
+         * TODO: fusion - This is a hack to disable STK on fusion, until
+         * integration is complete.
+         */
+        if (SystemProperties.getBoolean("ro.config.lte", false) == true)
+            return;
+
         waitForLooper();
 
         // onStart() method can be passed a null intent
