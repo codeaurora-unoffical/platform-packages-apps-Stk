@@ -39,6 +39,9 @@ public class StkDialogActivity extends Activity implements View.OnClickListener 
     // members
     TextMessage mTextMsg;
     int  dialogDuration = 0;
+
+    StkAppService appService = StkAppService.getInstance();
+
     Handler mTimeoutHandler = new Handler() {
         @Override
         public void handleMessage(Message msg) {
@@ -65,18 +68,9 @@ public class StkDialogActivity extends Activity implements View.OnClickListener 
     protected void onCreate(Bundle icicle) {
         super.onCreate(icicle);
 
-        initFromIntent(getIntent());
-        if (mTextMsg == null) {
-            finish();
-            return;
-        }
-
         requestWindowFeature(Window.FEATURE_LEFT_ICON);
-        Window window = getWindow();
 
         setContentView(R.layout.stk_msg_dialog);
-        TextView mMessageView = (TextView) window
-                .findViewById(R.id.dialog_message);
 
         Button okButton = (Button) findViewById(R.id.button_ok);
         Button cancelButton = (Button) findViewById(R.id.button_cancel);
@@ -84,18 +78,6 @@ public class StkDialogActivity extends Activity implements View.OnClickListener 
         okButton.setOnClickListener(this);
         cancelButton.setOnClickListener(this);
 
-        setTitle(mTextMsg.title);
-        if (!(mTextMsg.iconSelfExplanatory && mTextMsg.icon != null)) {
-            mMessageView.setText(mTextMsg.text);
-        }
-
-        if (mTextMsg.icon == null) {
-            window.setFeatureDrawableResource(Window.FEATURE_LEFT_ICON,
-                    com.android.internal.R.drawable.stat_notify_sim_toolkit);
-        } else {
-            window.setFeatureDrawable(Window.FEATURE_LEFT_ICON,
-                    new BitmapDrawable(mTextMsg.icon));
-        }
     }
 
     public void onClick(View v) {
@@ -131,6 +113,34 @@ public class StkDialogActivity extends Activity implements View.OnClickListener 
     @Override
     public void onResume() {
         super.onResume();
+
+        appService.indicateDisplayTextDlgVisibility(true);
+
+        initFromIntent(getIntent());
+        if (mTextMsg == null) {
+            finish();
+            return;
+        }
+
+        Window window = getWindow();
+
+        TextView mMessageView = (TextView) window
+                .findViewById(R.id.dialog_message);
+
+        setTitle(mTextMsg.title);
+
+        if (!(mTextMsg.iconSelfExplanatory && mTextMsg.icon != null)) {
+            mMessageView.setText(mTextMsg.text);
+        }
+
+        if (mTextMsg.icon == null) {
+            window.setFeatureDrawableResource(Window.FEATURE_LEFT_ICON,
+                    com.android.internal.R.drawable.stat_notify_sim_toolkit);
+        } else {
+            window.setFeatureDrawable(Window.FEATURE_LEFT_ICON,
+                    new BitmapDrawable(mTextMsg.icon));
+        }
+
         /*
          * If userClear flag is set and dialogduration is set to 0, display Text
          * should be displayed to user for ever until some high priority event occurred
@@ -149,6 +159,8 @@ public class StkDialogActivity extends Activity implements View.OnClickListener 
     public void onPause() {
         super.onPause();
 
+        appService.indicateDisplayTextDlgVisibility(false);
+
         cancelTimeOut();
     }
 
@@ -164,6 +176,12 @@ public class StkDialogActivity extends Activity implements View.OnClickListener 
         super.onRestoreInstanceState(savedInstanceState);
 
         mTextMsg = savedInstanceState.getParcelable(TEXT);
+    }
+
+    @Override
+    protected void onNewIntent(Intent intent) {
+        StkLog.d(this, "onNewIntent - updating the same Dialog box");
+        setIntent(intent);
     }
 
     private void sendResponse(int resId, boolean confirmed) {
