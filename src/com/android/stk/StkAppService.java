@@ -511,7 +511,6 @@ public class StkAppService extends Service implements Runnable {
             if (removeMenu()) {
                 StkLog.d(this, "Uninstall App");
                 mCurrentMenu = null;
-                mMainCmd = null;
                 StkAppInstaller.unInstall(mContext);
             } else {
                 StkLog.d(this, "Install App");
