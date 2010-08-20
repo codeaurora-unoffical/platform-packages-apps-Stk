@@ -46,6 +46,10 @@ public class StkCmdReceiver extends BroadcastReceiver {
             screenIdle  = intent.getBooleanExtra("SCREEN_IDLE",true);
             handleScreenStatus(context);
         }
+
+        if (action.equals(Intent.ACTION_LOCALE_CHANGED)) {
+            handleLocaleChange(context);
+        }
     }
 
     private void handleCommandMessage(Context context, Intent intent) {
@@ -79,6 +83,13 @@ public class StkCmdReceiver extends BroadcastReceiver {
         Bundle args = new Bundle();
         args.putInt(StkAppService.OPCODE, StkAppService.OP_IDLE_SCREEN);
         args.putBoolean(StkAppService.SCREEN_STATUS, screenIdle);
+        context.startService(new Intent(context, StkAppService.class)
+                .putExtras(args));
+    }
+
+    private void handleLocaleChange(Context context) {
+        Bundle args = new Bundle();
+        args.putInt(StkAppService.OPCODE, StkAppService.OP_LOCALE_CHANGED);
         context.startService(new Intent(context, StkAppService.class)
                 .putExtras(args));
     }

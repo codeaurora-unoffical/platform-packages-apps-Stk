@@ -61,6 +61,10 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Iterator;
 
+import android.provider.Settings;
+import android.content.res.Configuration;
+import com.android.internal.telephony.GsmAlphabet;
+
 /**
  * SIM toolkit application level service. Interacts with Telephopny messages,
  * application's launch and user input from STK UI elements.
@@ -88,6 +92,7 @@ public class StkAppService extends Service implements Runnable {
     private SetupEventListSettings mSetupEventListSettings = null;
     private boolean mClearSelectItem = false;
     private boolean mDisplayTextDlgIsVisibile = false;
+    private StkCmdMessage mCurrentSetupEventCmd = null;
 
     // Used for setting FLAG_ACTIVITY_NO_USER_ACTION when
     // creating an intent.
@@ -119,13 +124,16 @@ public class StkAppService extends Service implements Runnable {
     private static final int OP_DELAYED_MSG = 6;
     static final int OP_IDLE_SCREEN = 7;
     static final int OP_BROWSER_TERMINATION = 8;
+    static final int OP_LOCALE_CHANGED = 9;
+
+    //Invalid SetupEvent
+    static final int INVALID_SETUP_EVENT = 0xFF;
 
     // Response ids
     static final int RES_ID_MENU_SELECTION = 11;
     static final int RES_ID_INPUT = 12;
     static final int RES_ID_CONFIRM = 13;
     static final int RES_ID_DONE = 14;
-    static final int RES_ID_SETUP_EVENT_LIST = 15;
 
     static final int RES_ID_TIMEOUT = 20;
     static final int RES_ID_BACKWARD = 21;
@@ -140,7 +148,7 @@ public class StkAppService extends Service implements Runnable {
 
     // Notification id used to display Idle Mode text in NotificationManager.
     private static final int STK_NOTIFICATION_ID = 333;
-    private TextMessage idleModeText;
+    private StkCmdMessage mIdleModeTextCmd = null;
     private boolean mDisplayText = false;
     private boolean screenIdle = true;
 
@@ -208,6 +216,7 @@ public class StkAppService extends Service implements Runnable {
         case OP_RESPONSE:
         case OP_IDLE_SCREEN:
         case OP_BROWSER_TERMINATION:
+        case OP_LOCALE_CHANGED:
             msg.obj = args;
             /* falls through */
         case OP_LAUNCH_APP:
@@ -358,31 +367,45 @@ public class StkAppService extends Service implements Runnable {
                 handleSetupEventList(BROWSER_TERMINATION_EVENT,(Bundle) msg.obj);
                 break;
             case OP_IDLE_SCREEN:
-                Bundle args = ((Bundle) msg.obj);
-                screenIdle = args.getBoolean (SCREEN_STATUS);
-                if (idleModeText != null) {
-                    launchIdleModeText();
-                }
-                if (mDisplayText) {
-                    if (!screenIdle) {
-                        sendScreenBusyResponse();
-                    } else {
-                        launchTextDialog();
-                    }
-                    mDisplayText = false;
-                    // If an idle text proactive command is set then the
-                    // request for getting screen status still holds true.
-                    if (idleModeText == null) {
-                        Intent StkIntent = new Intent(AppInterface.CHECK_SCREEN_IDLE_ACTION);
-                        StkIntent.putExtra("SCREEN_STATUS_REQUEST",false);
-                        sendBroadcast(StkIntent);
-                    }
-                }
+                handleScreenStatus((Bundle) msg.obj);
+                break;
+            case OP_LOCALE_CHANGED:
+                StkLog.d(this, "Locale Changed");
+                handleSetupEventList(LANGUAGE_SELECTION_EVENT,(Bundle) msg.obj);
                 break;
             case MSG_ID_STOP_TONE:
                 StkLog.d(this, "Received MSG_ID_STOP_TONE");
                 handleStopTone();
                 break;
+            }
+        }
+    }
+
+    private void handleScreenStatus(Bundle args) {
+        screenIdle = args.getBoolean(SCREEN_STATUS);
+
+        // If the idle screen event is present in the list need to send the
+        // response to SIM.
+        if (screenIdle) {
+            StkLog.d(this, "Need to send IDLE SCREEN Available event to SIM");
+            handleSetupEventList(IDLE_SCREEN_AVAILABLE_EVENT, null);
+        }
+        if (mIdleModeTextCmd != null) {
+           launchIdleModeText();
+        }
+        if (mDisplayText) {
+            if (!screenIdle) {
+                sendScreenBusyResponse();
+            } else {
+                launchTextDialog();
+            }
+            mDisplayText = false;
+            // If an idle text proactive command is set then the
+            // request for getting screen status still holds true.
+            if (mIdleModeTextCmd == null) {
+                Intent StkIntent = new Intent(AppInterface.CHECK_SCREEN_IDLE_ACTION);
+                StkIntent.putExtra("SCREEN_STATUS_REQUEST", false);
+                sendBroadcast(StkIntent);
             }
         }
     }
@@ -556,14 +579,18 @@ public class StkAppService extends Service implements Runnable {
             break;
         case SET_UP_IDLE_MODE_TEXT:
             waitForUsersResponse = false;
-            idleModeText = mCurrentCmd.geTextMessage();
+            mIdleModeTextCmd = mCurrentCmd;
+            TextMessage idleModeText = mCurrentCmd.geTextMessage();
             // Send intent to ActivityManagerService to get the screen status
             Intent idleStkIntent  = new Intent(AppInterface.CHECK_SCREEN_IDLE_ACTION);
             if (idleModeText != null) {
-                idleStkIntent.putExtra("SCREEN_STATUS_REQUEST",true);
-            } else {
-                idleStkIntent.putExtra("SCREEN_STATUS_REQUEST",false);
-                launchIdleModeText();
+                if (idleModeText.text != null) {
+                    idleStkIntent.putExtra("SCREEN_STATUS_REQUEST",true);
+                } else {
+                    idleStkIntent.putExtra("SCREEN_STATUS_REQUEST",false);
+                    launchIdleModeText();
+                    mIdleModeTextCmd = null;
+                }
             }
             StkLog.d(this, "set up idle mode");
             mCurrentCmd = mMainCmd;
@@ -588,7 +615,21 @@ public class StkAppService extends Service implements Runnable {
             break;
         case SET_UP_EVENT_LIST:
             mSetupEventListSettings = mCurrentCmd.getSetEventList();
+            mCurrentSetupEventCmd = mCurrentCmd;
             mCurrentCmd = mMainCmd;
+            if ((mIdleModeTextCmd != null) && mDisplayText) {
+
+                for (int i = 0; i < mSetupEventListSettings.eventList.length; i++) {
+                    if (mSetupEventListSettings.eventList[i] == IDLE_SCREEN_AVAILABLE_EVENT) {
+                        StkLog.d(this," IDLE_SCREEN_AVAILABLE_EVENT present in List");
+                        // Request ActivityManagerService to get the screen status
+                        Intent StkIntent = new Intent(AppInterface.CHECK_SCREEN_IDLE_ACTION);
+                        StkIntent.putExtra("SCREEN_STATUS_REQUEST", true);
+                        sendBroadcast(StkIntent);
+                        break;
+                    }
+                }
+            }
             break;
         }
 
@@ -627,13 +668,6 @@ public class StkAppService extends Service implements Runnable {
                 resMsg.setMenuSelection(menuSelection);
                 break;
             }
-            break;
-        case RES_ID_SETUP_EVENT_LIST:
-            StkLog.d(this, "RES_ID_SETUP_EVENT_LIST");
-            int eventValue = args.getInt(SETUP_EVENT_TYPE);
-            byte[] addedInfo = args.getByteArray(SETUP_EVENT_CAUSE);
-            resMsg.setResultCode(ResultCode.OK);
-            resMsg.setEventDownload(eventValue, addedInfo);
             break;
         case RES_ID_INPUT:
             StkLog.d(this, "RES_ID_INPUT");
@@ -783,18 +817,21 @@ public class StkAppService extends Service implements Runnable {
     }
 
     private void sendSetUpEventResponse(int event, byte[] addedInfo) {
-        Message msg = mServiceHandler.obtainMessage();
-        msg.arg1 = OP_RESPONSE;
-        Bundle args = new Bundle();
-        args.putInt(StkAppService.SETUP_EVENT_TYPE,event);
-        args.putByteArray(StkAppService.SETUP_EVENT_CAUSE,addedInfo);
-        args.putInt(StkAppService.RES_ID, RES_ID_SETUP_EVENT_LIST);
-        msg.obj = args;
-        mServiceHandler.sendMessage(msg);
+        StkLog.d(this, "sendSetUpEventResponse: event : " + event);
+
+        if (mCurrentSetupEventCmd == null){
+            return;
+        }
+
+        StkResponseMessage resMsg = new StkResponseMessage(mCurrentSetupEventCmd);
+
+        resMsg.setResultCode(ResultCode.OK);
+        resMsg.setEventDownload(event, addedInfo);
+
+        mStkService.onCmdResponse(resMsg);
     }
 
     private void handleSetupEventList(int event, Bundle args) {
-
         boolean eventPresent = false;
         byte[] addedInfo;
         StkLog.d(this, "Event :" + event);
@@ -813,7 +850,7 @@ public class StkAppService extends Service implements Runnable {
 
             /* If Event is present send the response to ICC */
             if (eventPresent == true) {
-                StkLog.d(this, " Event " + event + "exists in the EventList");
+                StkLog.d(this, " Event " + event + " exists in the EventList");
                 addedInfo = new byte[MAX_ADDED_EVENT_DOWNLOAD_LEN];
                 switch (event) {
                     case BROWSER_TERMINATION_EVENT:
@@ -821,6 +858,20 @@ public class StkAppService extends Service implements Runnable {
                                 .getInt(AppInterface.BROWSER_TERMINATION_CAUSE);
                         StkLog.d(this, "BrowserTerminationCause: " + browserTerminationCause);
                         addedInfo[0] = (byte) browserTerminationCause;
+                        sendSetUpEventResponse(event, addedInfo);
+                        break;
+                    case IDLE_SCREEN_AVAILABLE_EVENT:
+                        sendSetUpEventResponse(event, null);
+                        removeSetUpEvent(event);
+                        break;
+                    case LANGUAGE_SELECTION_EVENT:
+                        Configuration configuration = new Configuration();
+                        Settings.System.getConfiguration(mContext.getContentResolver(), configuration);
+                        String language = configuration.locale.getLanguage();
+                        StkLog.d(this, "language: " + language);
+                        // Each language code is a pair of alpha-numeric characters. Each alpha-numeric
+                        // character shall be coded on one byte using the SMS default 7-bit coded alphabet
+                        addedInfo = GsmAlphabet.stringToGsm8BitPacked(language);
                         sendSetUpEventResponse(event, addedInfo);
                         break;
                     default:
@@ -831,6 +882,22 @@ public class StkAppService extends Service implements Runnable {
             }
         } else {
             StkLog.d(this, "SetupEventList is not received. Ignoring the event: " + event);
+        }
+    }
+
+    private void  removeSetUpEvent(int event) {
+        StkLog.d(this, "Remove Event :" + event);
+
+        if (mSetupEventListSettings != null) {
+            /*
+             * Make new  Eventlist without the event
+             */
+            for (int i = 0; i < mSetupEventListSettings.eventList.length; i++) {
+                if (event == mSetupEventListSettings.eventList[i]) {
+                    mSetupEventListSettings.eventList[i] = INVALID_SETUP_EVENT;
+                    break;
+                }
+            }
         }
     }
 
@@ -954,7 +1021,7 @@ public class StkAppService extends Service implements Runnable {
     }
 
     private void launchIdleModeText() {
-        TextMessage msg = idleModeText;
+        TextMessage msg = mIdleModeTextCmd.geTextMessage();
         if (msg.text == null) {
             mNotificationManager.cancel(STK_NOTIFICATION_ID);
         } else {
@@ -977,7 +1044,7 @@ public class StkAppService extends Service implements Runnable {
             ** But, Android at present doesn't support ICON display. So, considering the
             ** self explanatory case as non-self explanatory and displaying the
             ** alpha string always. Refer to TS ETSI 102 223 6.5.4  */
-            if (!msg.iconSelfExplanatory || mCurrentCmd.getLoadOptionalIconFailed()) {
+            if (!msg.iconSelfExplanatory || mIdleModeTextCmd.getLoadOptionalIconFailed()) {
                 notification.tickerText = msg.text;
                 contentView.setTextViewText(com.android.internal.R.id.text,
                         msg.text);
