@@ -148,8 +148,8 @@ public class StkDialogActivity extends Activity implements View.OnClickListener 
          * ETSI 102.223, 6.4.1)
          */
         dialogDuration = StkApp.calculateDurationInMilis(mTextMsg.duration);
-        if (dialogDuration == 0 && mTextMsg.userClear) {
-            StkLog.d(this, "userClearFlag set");
+        if (dialogDuration == 0 && !mTextMsg.responseNeeded && mTextMsg.userClear) {
+            StkLog.d(this, "User should clear text..show message for ever");
             return;
         }
         startTimeOut();
