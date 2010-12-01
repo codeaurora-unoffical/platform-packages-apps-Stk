@@ -849,7 +849,7 @@ public class StkAppService extends Service implements Runnable {
 
     private void handleSetupEventList(int event, Bundle args) {
         boolean eventPresent = false;
-        byte[] addedInfo;
+        byte[] addedInfo = null;
         StkLog.d(this, "Event :" + event);
 
         if (mSetupEventListSettings != null) {
@@ -867,17 +867,18 @@ public class StkAppService extends Service implements Runnable {
             /* If Event is present send the response to ICC */
             if (eventPresent == true) {
                 StkLog.d(this, " Event " + event + " exists in the EventList");
-                addedInfo = new byte[MAX_ADDED_EVENT_DOWNLOAD_LEN];
                 switch (event) {
                     case BROWSER_TERMINATION_EVENT:
                         int browserTerminationCause = args
                                 .getInt(AppInterface.BROWSER_TERMINATION_CAUSE);
                         StkLog.d(this, "BrowserTerminationCause: " + browserTerminationCause);
+                        //Single byte is sufficient to represent browser termination cause.
+                        addedInfo = new byte[1];
                         addedInfo[0] = (byte) browserTerminationCause;
                         sendSetUpEventResponse(event, addedInfo);
                         break;
                     case IDLE_SCREEN_AVAILABLE_EVENT:
-                        sendSetUpEventResponse(event, null);
+                        sendSetUpEventResponse(event, addedInfo);
                         removeSetUpEvent(event);
                         break;
                     case LANGUAGE_SELECTION_EVENT:
