@@ -17,6 +17,7 @@
 package com.android.stk;
 
 import com.android.internal.telephony.cat.AppInterface;
+import com.android.internal.telephony.IccRefreshResponse;
 
 import android.content.BroadcastReceiver;
 import android.content.Context;
@@ -48,6 +49,8 @@ public class StkCmdReceiver extends BroadcastReceiver {
             handleScreenStatus(context);
         } else if (action.equals(Intent.ACTION_LOCALE_CHANGED)) {
             handleLocaleChange(context);
+        } else if (action.equals(AppInterface.CAT_ICC_STATUS_CHANGE)) {
+            handleCardStatusChange(context, intent);
         }
     }
 
@@ -85,6 +88,25 @@ public class StkCmdReceiver extends BroadcastReceiver {
     private void handleLocaleChange(Context context) {
         Bundle args = new Bundle();
         args.putInt(StkAppService.OPCODE, StkAppService.OP_LOCALE_CHANGED);
+        context.startService(new Intent(context, StkAppService.class)
+                .putExtras(args));
+    }
+
+    private void handleCardStatusChange(Context context, Intent intent) {
+        // If the Card is absent then check if the StkAppService is even
+        // running before starting it to stop it right away
+        if ((intent.getBooleanExtra(AppInterface.CARD_STATUS, false) == false)
+                && StkAppService.getInstance() == null) {
+            //CatLog.d(this, "No need to start the StkAppService just to stop it again");
+            return;
+        }
+        Bundle args = new Bundle();
+        args.putInt(StkAppService.OPCODE, StkAppService.OP_CARD_STATUS_CHANGED);
+        args.putBoolean(AppInterface.CARD_STATUS,
+                intent.getBooleanExtra(AppInterface.CARD_STATUS,true));
+        args.putInt(AppInterface.REFRESH_RESULT, intent
+                .getIntExtra(AppInterface.REFRESH_RESULT,
+                IccRefreshResponse.Result.ICC_FILE_UPDATE.ordinal()));
         context.startService(new Intent(context, StkAppService.class)
                 .putExtras(args));
     }
