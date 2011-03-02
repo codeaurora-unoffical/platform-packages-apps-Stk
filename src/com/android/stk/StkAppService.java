@@ -568,7 +568,6 @@ public class StkAppService extends Service implements Runnable {
             break;
         case SET_UP_IDLE_MODE_TEXT:
             waitForUsersResponse = false;
-            launchIdleText();
             mIdleModeTextCmd = mCurrentCmd;
             TextMessage idleModeText = mCurrentCmd.geTextMessage();
             // Send intent to ActivityManagerService to get the screen status
@@ -983,7 +982,7 @@ public class StkAppService extends Service implements Runnable {
 
     private void launchIdleText() {
         TextMessage msg = mIdleModeTextCmd.geTextMessage();
-        if (msg.text == null) {
+        if (msg.text == null || mScreenIdle == false) {
             mNotificationManager.cancel(STK_NOTIFICATION_ID);
         } else {
             Notification notification = new Notification();
@@ -999,7 +998,7 @@ public class StkAppService extends Service implements Runnable {
              ** then alpha string or text data should be displayed
              ** Ref: ETSI 102.223,section 6.5.4
              **/
-            if (mCurrentCmd.hasIconLoadFailed() || !msg.iconSelfExplanatory) {
+            if (mIdleModeTextCmd.hasIconLoadFailed() || !msg.iconSelfExplanatory) {
                 notification.tickerText = msg.text;
                 contentView.setTextViewText(com.android.internal.R.id.text,
                         msg.text);
