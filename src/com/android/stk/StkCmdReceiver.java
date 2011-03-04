@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2007 The Android Open Source Project
+ * Copyright (c) 2011, Code Aurora Forum. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,6 +24,8 @@ import android.content.Context;
 import android.content.Intent;
 import android.os.Bundle;
 
+import static com.android.internal.telephony.CommandsInterface.SIM_REFRESH_FILE_UPDATED;
+
 /**
  * Receiver class to get STK intents, broadcasted by telephony layer.
  *
@@ -45,6 +48,10 @@ public class StkCmdReceiver extends BroadcastReceiver {
         if (action.equals(AppInterface.STK_IDLE_SCREEN_ACTION)) {
             screenIdle  = intent.getBooleanExtra("SCREEN_IDLE",true);
             handleScreenStatus(context);
+        }
+
+        if (action.equals(AppInterface.STK_ICC_STATUS_CHANGE)) {
+            handleIccStatusChange(context, intent);
         }
     }
 
@@ -79,6 +86,15 @@ public class StkCmdReceiver extends BroadcastReceiver {
         Bundle args = new Bundle();
         args.putInt(StkAppService.OPCODE, StkAppService.OP_IDLE_SCREEN);
         args.putBoolean(StkAppService.SCREEN_STATUS, screenIdle);
+        context.startService(new Intent(context, StkAppService.class)
+                .putExtras(args));
+    }
+
+    private void handleIccStatusChange(Context context, Intent intent) {
+        Bundle args = new Bundle();
+        args.putInt(StkAppService.OPCODE, StkAppService.OP_ICC_STATUS_CHANGE);
+        args.putInt("REFRESH_RESULT", intent
+                .getIntExtra("REFRESH_RESULT", SIM_REFRESH_FILE_UPDATED));
         context.startService(new Intent(context, StkAppService.class)
                 .putExtras(args));
     }

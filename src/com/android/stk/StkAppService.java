@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2007 The Android Open Source Project
- * Copyright (c) 2009-10, Code Aurora Forum. All rights reserved.
+ * Copyright (c) 2009-2011, Code Aurora Forum. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -56,6 +56,8 @@ import com.android.internal.telephony.gsm.stk.TextMessage;
 import com.android.internal.telephony.gsm.stk.LaunchBrowserMode;
 import com.android.internal.telephony.gsm.stk.StkCmdMessage.SetupEventListSettings;
 import static com.android.internal.telephony.gsm.stk.StkCmdMessage.SetupEventListConstants.*;
+import static com.android.internal.telephony.CommandsInterface.SIM_REFRESH_INIT;
+import static com.android.internal.telephony.CommandsInterface.SIM_REFRESH_RESET;
 
 import java.util.LinkedList;
 import java.util.List;
@@ -119,6 +121,7 @@ public class StkAppService extends Service implements Runnable {
     private static final int OP_DELAYED_MSG = 6;
     static final int OP_IDLE_SCREEN = 7;
     static final int OP_BROWSER_TERMINATION = 8;
+    static final int OP_ICC_STATUS_CHANGE = 9;
 
     // Response ids
     static final int RES_ID_MENU_SELECTION = 11;
@@ -140,7 +143,7 @@ public class StkAppService extends Service implements Runnable {
 
     // Notification id used to display Idle Mode text in NotificationManager.
     private static final int STK_NOTIFICATION_ID = 333;
-    private TextMessage idleModeText;
+    private StkCmdMessage mIdleModeTextCmd = null;
     private boolean mDisplayText = false;
     private boolean screenIdle = true;
 
@@ -208,6 +211,7 @@ public class StkAppService extends Service implements Runnable {
         case OP_RESPONSE:
         case OP_IDLE_SCREEN:
         case OP_BROWSER_TERMINATION:
+        case OP_ICC_STATUS_CHANGE:
             msg.obj = args;
             /* falls through */
         case OP_LAUNCH_APP:
@@ -360,7 +364,7 @@ public class StkAppService extends Service implements Runnable {
             case OP_IDLE_SCREEN:
                 Bundle args = ((Bundle) msg.obj);
                 screenIdle = args.getBoolean (SCREEN_STATUS);
-                if (idleModeText != null) {
+                if (mIdleModeTextCmd != null) {
                     launchIdleModeText();
                 }
                 if (mDisplayText) {
@@ -372,7 +376,7 @@ public class StkAppService extends Service implements Runnable {
                     mDisplayText = false;
                     // If an idle text proactive command is set then the
                     // request for getting screen status still holds true.
-                    if (idleModeText == null) {
+                    if (mIdleModeTextCmd == null) {
                         Intent StkIntent = new Intent(AppInterface.CHECK_SCREEN_IDLE_ACTION);
                         StkIntent.putExtra("SCREEN_STATUS_REQUEST",false);
                         sendBroadcast(StkIntent);
@@ -383,7 +387,30 @@ public class StkAppService extends Service implements Runnable {
                 StkLog.d(this, "Received MSG_ID_STOP_TONE");
                 handleStopTone();
                 break;
+            case OP_ICC_STATUS_CHANGE:
+                StkLog.d(this, "Icc Status change received");
+                handleIccStatusChange((Bundle) msg.obj);
+                break;
             }
+        }
+    }
+
+    private void handleIccStatusChange(Bundle args) {
+        int refreshResult = args.getInt("REFRESH_RESULT");
+
+        StkLog.d(this, "Icc Refresh Result: "+ refreshResult);
+        if ((refreshResult == SIM_REFRESH_INIT) ||
+                (refreshResult == SIM_REFRESH_RESET)) {
+            // Clear Idle Text
+            mIdleModeTextCmd = null;
+            mNotificationManager.cancel(STK_NOTIFICATION_ID);
+        }
+
+        if (refreshResult == SIM_REFRESH_RESET) {
+            // Uninstall STKmenu
+            mCurrentMenu = null;
+            mMainCmd = null;
+            StkAppInstaller.unInstall(mContext);
         }
     }
 
@@ -556,14 +583,18 @@ public class StkAppService extends Service implements Runnable {
             break;
         case SET_UP_IDLE_MODE_TEXT:
             waitForUsersResponse = false;
-            idleModeText = mCurrentCmd.geTextMessage();
+            mIdleModeTextCmd = mCurrentCmd;
+            TextMessage idleModeText = mCurrentCmd.geTextMessage();
             // Send intent to ActivityManagerService to get the screen status
             Intent idleStkIntent  = new Intent(AppInterface.CHECK_SCREEN_IDLE_ACTION);
             if (idleModeText != null) {
-                idleStkIntent.putExtra("SCREEN_STATUS_REQUEST",true);
-            } else {
-                idleStkIntent.putExtra("SCREEN_STATUS_REQUEST",false);
-                launchIdleModeText();
+                if (idleModeText.text != null) {
+                    idleStkIntent.putExtra("SCREEN_STATUS_REQUEST",true);
+                } else {
+                    idleStkIntent.putExtra("SCREEN_STATUS_REQUEST",false);
+                    launchIdleModeText();
+                    mIdleModeTextCmd = null;
+                }
             }
             StkLog.d(this, "set up idle mode");
             mCurrentCmd = mMainCmd;
@@ -954,7 +985,7 @@ public class StkAppService extends Service implements Runnable {
     }
 
     private void launchIdleModeText() {
-        TextMessage msg = idleModeText;
+        TextMessage msg = mIdleModeTextCmd.geTextMessage();
         if (msg.text == null) {
             mNotificationManager.cancel(STK_NOTIFICATION_ID);
         } else {
@@ -977,7 +1008,7 @@ public class StkAppService extends Service implements Runnable {
             ** But, Android at present doesn't support ICON display. So, considering the
             ** self explanatory case as non-self explanatory and displaying the
             ** alpha string always. Refer to TS ETSI 102 223 6.5.4  */
-            if (!msg.iconSelfExplanatory || mCurrentCmd.getLoadOptionalIconFailed()) {
+            if (!msg.iconSelfExplanatory || mIdleModeTextCmd.getLoadOptionalIconFailed()) {
                 notification.tickerText = msg.text;
                 contentView.setTextViewText(com.android.internal.R.id.text,
                         msg.text);
