@@ -55,6 +55,7 @@ import com.android.internal.telephony.cat.CatResponseMessage;
 import com.android.internal.telephony.cat.TextMessage;
 import com.android.internal.telephony.GsmAlphabet;
 import com.android.internal.telephony.SimRefreshResponse;
+import android.app.ActivityManager;
 
 import java.util.LinkedList;
 
@@ -430,7 +431,12 @@ public class StkAppService extends Service implements Runnable {
            launchIdleText();
         }
         if (mDisplayText) {
-            if (!mScreenIdle) {
+
+            /*
+             * Check if the screen is NOT idle and also to check if the top most
+             * activity visible is not 'us'. We are never busy to ourselves.
+             */
+            if (!mScreenIdle && !isTopOfStack()) {
                 sendScreenBusyResponse();
             } else {
                 launchTextDialog();
@@ -444,6 +450,18 @@ public class StkAppService extends Service implements Runnable {
                 sendBroadcast(StkIntent);
             }
         }
+    }
+
+    private boolean isTopOfStack() {
+        ActivityManager mAcivityManager = (ActivityManager) mContext
+                .getSystemService(ACTIVITY_SERVICE);
+        String currentPackageName = mAcivityManager.getRunningTasks(1).get(0).topActivity
+                .getPackageName();
+        if (null != currentPackageName) {
+            return currentPackageName.equals(PACKAGE_NAME);
+        }
+
+        return false;
     }
 
     private void sendScreenBusyResponse() {
