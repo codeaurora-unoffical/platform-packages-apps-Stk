@@ -175,6 +175,15 @@ public class StkAppService extends Service implements Runnable {
 
     @Override
     public void onCreate() {
+        // Initialize members
+        mStkService = com.android.internal.telephony.cat.CatService
+                .getInstance();
+
+        if (mStkService == null) {
+            CatLog.d(this, " Unable to get Service handle");
+            return;
+        }
+
         mCmdsQ = new LinkedList<DelayedCmd>();
         Thread serviceThread = new Thread(null, this, "Stk App Service");
         serviceThread.start();
@@ -186,20 +195,6 @@ public class StkAppService extends Service implements Runnable {
 
     @Override
     public void onStart(Intent intent, int startId) {
-        // Get instance of CatService
-        mStkService = com.android.internal.telephony.cat.CatService
-                .getInstance();
-        if (mStkService == null) {
-            CatLog.d(this, " Unable to get Service handle, stopping StkAppService");
-            // Unistall StkApp, Clear Idle text, Stop StkAppService
-            // If the CatService is not running and the StkAppService is going
-            // away then there is no way StkApp can communicate to gstk
-            StkAppInstaller.unInstall(mContext);
-            mNotificationManager.cancel(STK_NOTIFICATION_ID);
-            stopSelf();
-            return;
-        }
-
         waitForLooper();
 
         // onStart() method can be passed a null intent
@@ -393,23 +388,33 @@ public class StkAppService extends Service implements Runnable {
     }
 
     private void handleIccStatusChange(Bundle args) {
-        SimRefreshResponse state = new SimRefreshResponse();
-        state.refreshResult = SimRefreshResponse
-                .refreshResultFromRIL(args.getInt("REFRESH_RESULT"));
+        Boolean RadioStatus = args.getBoolean("RADIO_AVAILABLE");
 
-        CatLog.d(this, "Icc Refresh Result: " + state.refreshResult);
-        if ((state.refreshResult == SimRefreshResponse.Result.SIM_INIT)
-                || (state.refreshResult == SimRefreshResponse.Result.SIM_RESET)) {
-            // Clear Idle Text
-            mNotificationManager.cancel(STK_NOTIFICATION_ID);
-            mIdleModeTextCmd = null;
-        }
-
-        if (state.refreshResult == SimRefreshResponse.Result.SIM_RESET) {
-            // Uninstall STkmenu
+        if (RadioStatus == false) {
+            CatLog.d(this, "RADIO_OFF_OR_UNAVAILABLE received");
+            // Unistall STKAPP, Clear Idle text, Stop StkAppService
             StkAppInstaller.unInstall(mContext);
-            mCurrentMenu = null;
-            mMainCmd = null;
+            mNotificationManager.cancel(STK_NOTIFICATION_ID);
+            stopSelf();
+        } else {
+            SimRefreshResponse state = new SimRefreshResponse();
+            state.refreshResult = SimRefreshResponse.refreshResultFromRIL(
+                    args.getInt("REFRESH_RESULT"));
+
+            CatLog.d(this, "Icc Refresh Result: "+ state.refreshResult);
+            if ((state.refreshResult == SimRefreshResponse.Result.SIM_INIT) ||
+                (state.refreshResult == SimRefreshResponse.Result.SIM_RESET)) {
+                // Clear Idle Text
+                mNotificationManager.cancel(STK_NOTIFICATION_ID);
+                mIdleModeTextCmd = null;
+            }
+
+            if (state.refreshResult == SimRefreshResponse.Result.SIM_RESET) {
+                // Uninstall STkmenu
+                StkAppInstaller.unInstall(mContext);
+                mCurrentMenu = null;
+                mMainCmd = null;
+            }
         }
     }
 
