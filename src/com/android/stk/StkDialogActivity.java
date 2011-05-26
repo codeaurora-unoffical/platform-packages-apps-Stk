@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2007 The Android Open Source Project
+ * Copyright (c) 2011 Code Aurora Forum. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -39,6 +40,7 @@ public class StkDialogActivity extends Activity implements View.OnClickListener 
     // members
     TextMessage mTextMsg;
     int  dialogDuration = 0;
+    private int mSlotId = 0;
 
     StkAppService appService = StkAppService.getInstance();
 
@@ -110,7 +112,7 @@ public class StkDialogActivity extends Activity implements View.OnClickListener 
     public void onResume() {
         super.onResume();
 
-        appService.indicateDisplayTextDlgVisibility(true);
+        appService.indicateDisplayTextDlgVisibility(true, mSlotId);
 
         initFromIntent(getIntent());
         if (mTextMsg == null) {
@@ -157,7 +159,7 @@ public class StkDialogActivity extends Activity implements View.OnClickListener 
     public void onPause() {
         super.onPause();
 
-        appService.indicateDisplayTextDlgVisibility(false);
+        appService.indicateDisplayTextDlgVisibility(false, mSlotId);
 
         cancelTimeOut();
     }
@@ -187,6 +189,7 @@ public class StkDialogActivity extends Activity implements View.OnClickListener 
         args.putInt(StkAppService.OPCODE, StkAppService.OP_RESPONSE);
         args.putInt(StkAppService.RES_ID, resId);
         args.putBoolean(StkAppService.CONFIRMATION, confirmed);
+        args.putInt(StkAppService.SLOT_ID, mSlotId);
         startService(new Intent(this, StkAppService.class).putExtras(args));
     }
 
@@ -198,6 +201,7 @@ public class StkDialogActivity extends Activity implements View.OnClickListener 
 
         if (intent != null) {
             mTextMsg = intent.getParcelableExtra("TEXT");
+            mSlotId = intent.getIntExtra(StkAppService.SLOT_ID, 0);
         } else {
             finish();
         }

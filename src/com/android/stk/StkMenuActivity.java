@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2007 The Android Open Source Project
+ * Copyright (c) 2011 Code Aurora Forum. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -50,6 +51,7 @@ public class StkMenuActivity extends ListActivity {
     private TextView mTitleTextView = null;
     private ImageView mTitleIconView = null;
     private ProgressBar mProgressView = null;
+    private int mSlotId = 0;
 
     StkAppService appService = StkAppService.getInstance();
 
@@ -145,8 +147,7 @@ public class StkMenuActivity extends ListActivity {
     public void onResume() {
         super.onResume();
 
-        appService.indicateMenuVisibility(true);
-        mStkMenu = appService.getMenu();
+        appService.indicateMenuVisibility(true, mSlotId);
         if (mStkMenu == null) {
             finish();
             return;
@@ -169,7 +170,7 @@ public class StkMenuActivity extends ListActivity {
     public void onPause() {
         super.onPause();
 
-        appService.indicateMenuVisibility(false);
+        appService.indicateMenuVisibility(false, mSlotId);
         cancelTimeOut();
     }
 
@@ -294,6 +295,13 @@ public class StkMenuActivity extends ListActivity {
 
         if (intent != null) {
             mState = intent.getIntExtra("STATE", STATE_MAIN);
+            mSlotId = intent.getIntExtra(StkAppService.SLOT_ID, 0);
+
+            if (mState == STATE_SECONDARY) {
+                mStkMenu = intent.getParcelableExtra("MENU");
+            } else {
+                mStkMenu = appService.getMenu(mSlotId);
+            }
         } else {
             finish();
         }
@@ -325,6 +333,7 @@ public class StkMenuActivity extends ListActivity {
         Bundle args = new Bundle();
         args.putInt(StkAppService.OPCODE, StkAppService.OP_RESPONSE);
         args.putInt(StkAppService.RES_ID, resId);
+        args.putInt(StkAppService.SLOT_ID, mSlotId);
         args.putInt(StkAppService.MENU_SELECTION, itemId);
         args.putBoolean(StkAppService.HELP, help);
         mContext.startService(new Intent(mContext, StkAppService.class)

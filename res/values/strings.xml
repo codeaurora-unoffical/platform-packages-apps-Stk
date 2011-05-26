@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Copyright (C) 2007 The Android Open Source Project
+     Copyright (c) 2011 Code Aurora Forum. All rights reserved.
 
      Licensed under the Apache License, Version 2.0 (the "License");
      you may not use this file except in compliance with the License.
@@ -17,6 +18,8 @@
 <resources>
     <!-- Default Application label used on home screen with an icon -->
     <string name="app_name">SIM Toolkit</string>
+    <!-- Application label used on home screen with an icon2 -->
+    <string name="app_name2">SIM Toolkit2</string>
     <!-- Menu button option for ending current SIM session -->
     <string name="menu_end_session">End session</string>
     <!-- Menu button option for requesting additional help information -->
