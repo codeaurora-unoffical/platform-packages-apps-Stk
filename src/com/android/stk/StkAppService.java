@@ -368,6 +368,29 @@ public class StkAppService extends Service {
         mCurrentSlotId = slotId;
     }
 
+    public void reset() {
+        mMainCmd = null;
+        mCurrentCmd = null;
+        mCurrentMenu = null;
+        lastSelectedItem = null;
+        responseNeeded = true;
+        mCmdInProgress = false;
+        launchBrowser = false;
+        mBrowserSettings = null;
+        mSetupEventListSettings = null;
+        mCmdsQ.clear();
+        mCurrentSetupEventCmd = null;
+        mIdleModeTextCmd = null;
+        mDisplayText = false;
+        mScreenIdle = true;
+        player = null;
+        mVibrator.cancel();
+        mMainMenu  = null;
+        mClearSelectItem = false;
+        mDisplayTextDlgIsVisibile = false;
+        mMenuIsVisibile = false;
+    }
+
     @Override
     public void handleMessage(Message msg) {
             int opcode = msg.arg1;
@@ -476,7 +499,7 @@ public class StkAppService extends Service {
             // Unistall STKAPP, Clear Idle text, Stop StkAppService
             StkAppInstaller.unInstall(mContext, mCurrentSlotId);
             mNotificationManager.cancel(STK_NOTIFICATION_ID);
-            stopSelf();
+            mServiceHandler[mCurrentSlotId].reset();
         } else {
             SimRefreshResponse state = new SimRefreshResponse();
             state.refreshResult = SimRefreshResponse.refreshResultFromRIL(
