@@ -598,6 +598,8 @@ public class StkAppService extends Service {
         msg.arg1 = OP_RESPONSE;
         Bundle args = new Bundle();
         args.putInt(StkAppService.RES_ID, resId);
+        args.putInt(StkAppService.SLOT_ID, mCurrentSlotId);
+        CatLog.d(this, "sendResponse mCurrentSlotId: " + mCurrentSlotId );
         msg.obj = args;
         this.sendMessage(msg);
     }
@@ -1293,7 +1295,8 @@ public class StkAppService extends Service {
                     | getFlagActivityNoUserAction(InitiatedByUserAction.unknown));
             newIntent.putExtra("TEXT", toneMsg);
             newIntent.putExtra("TONE", settings);
-            CatLog.d(this, "Starting Activity based on the ToneDialog Intent");
+            newIntent.putExtra(SLOT_ID, mCurrentSlotId);
+            CatLog.d(this, "Starting Activity based on the ToneDialog Intent for SlotId: " + mCurrentSlotId);
             startActivity(newIntent);
         } else {
             CatLog.d(this, "toneMsg.text: " + toneMsg.text + " NO Activity, play tone");
