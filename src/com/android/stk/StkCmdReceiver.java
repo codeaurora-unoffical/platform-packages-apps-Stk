@@ -23,11 +23,15 @@ import android.content.Context;
 import android.content.Intent;
 import android.os.Bundle;
 
+import static com.android.internal.telephony.cat.CatCmdMessage.SetupEventListConstants.*;
+import static com.android.internal.telephony.cat.CatCmdMessage.BrowserTerminationCauses.*;
+
 /**
  * Receiver class to get STK intents, broadcasted by telephony layer.
  *
  */
 public class StkCmdReceiver extends BroadcastReceiver {
+    private boolean mScreenIdle = true;
 
     @Override
     public void onReceive(Context context, Intent intent) {
@@ -39,6 +43,11 @@ public class StkCmdReceiver extends BroadcastReceiver {
             handleSessionEnd(context, intent);
         } else if (action.equals(AppInterface.CAT_ALPHA_NOTIFY_ACTION)) {
             handleAlphaNotify(context, intent);
+        } else if (action.equals(AppInterface.CAT_IDLE_SCREEN_ACTION)) {
+            mScreenIdle = intent.getBooleanExtra("SCREEN_IDLE",true);
+            handleScreenStatus(context);
+        } else if (action.equals(Intent.ACTION_LOCALE_CHANGED)) {
+            handleLocaleChange(context);
         }
     }
 
@@ -61,9 +70,21 @@ public class StkCmdReceiver extends BroadcastReceiver {
     private void handleAlphaNotify(Context context, Intent intent) {
         Bundle args = new Bundle();
         String alphaString = intent.getStringExtra(AppInterface.ALPHA_STRING);
-
         args.putInt(StkAppService.OPCODE, StkAppService.OP_ALPHA_NOTIFY);
         args.putString(AppInterface.ALPHA_STRING, alphaString);
+    }
+
+    private void handleScreenStatus(Context context) {
+        Bundle args = new Bundle();
+        args.putInt(StkAppService.OPCODE, StkAppService.OP_IDLE_SCREEN);
+        args.putBoolean(StkAppService.SCREEN_STATUS,  mScreenIdle);
+        context.startService(new Intent(context, StkAppService.class)
+                .putExtras(args));
+    }
+
+    private void handleLocaleChange(Context context) {
+        Bundle args = new Bundle();
+        args.putInt(StkAppService.OPCODE, StkAppService.OP_LOCALE_CHANGED);
         context.startService(new Intent(context, StkAppService.class)
                 .putExtras(args));
     }
