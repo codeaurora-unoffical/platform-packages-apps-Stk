@@ -58,6 +58,7 @@ import com.android.internal.telephony.cat.CatLog;
 import com.android.internal.telephony.cat.CatResponseMessage;
 import com.android.internal.telephony.cat.TextMessage;
 import com.android.internal.telephony.GsmAlphabet;
+import android.app.ActivityManager;
 
 import java.util.LinkedList;
 import java.util.List;
@@ -172,21 +173,6 @@ public class StkAppService extends Service implements Runnable {
 
     @Override
     public void onCreate() {
-        // Initialize members
-        mStkService = com.android.internal.telephony.cat.CatService
-                .getInstance();
-
-        // NOTE mStkService is a singleton and continues to exist even if the GSMPhone is disposed
-        //   after the radio technology change from GSM to CDMA so the PHONE_TYPE_CDMA check is
-        //   needed. In case of switching back from CDMA to GSM the GSMPhone constructor updates
-        //   the instance. (TODO: test).
-        if ((mStkService == null)
-                && (TelephonyManager.getDefault().getPhoneType()
-                                != TelephonyManager.PHONE_TYPE_CDMA)) {
-            CatLog.d(this, " Unable to get Service handle");
-            return;
-        }
-
         mCmdsQ = new LinkedList<DelayedCmd>();
         Thread serviceThread = new Thread(null, this, "Stk App Service");
         serviceThread.start();
@@ -198,6 +184,20 @@ public class StkAppService extends Service implements Runnable {
 
     @Override
     public void onStart(Intent intent, int startId) {
+        // Get instance of CatService
+        mStkService = com.android.internal.telephony.cat.CatService
+                .getInstance();
+        if (mStkService == null) {
+            CatLog.d(this, " Unable to get Service handle, stopping StkAppService");
+            // Unistall StkApp, Clear Idle text, Stop StkAppService
+            // If the CatService is not running and the StkAppService is going
+            // away then there is no way StkApp can communicate to gstk
+            StkAppInstaller.unInstall(mContext);
+            mNotificationManager.cancel(STK_NOTIFICATION_ID);
+            stopSelf();
+            return;
+        }
+
         waitForLooper();
 
         // onStart() method can be passed a null intent
@@ -221,6 +221,7 @@ public class StkAppService extends Service implements Runnable {
         case OP_RESPONSE:
         case OP_ALPHA_NOTIFY:
         case OP_LOCALE_CHANGED:
+        case OP_IDLE_SCREEN:
             msg.obj = args;
             /* falls through */
         case OP_LAUNCH_APP:
@@ -388,7 +389,12 @@ public class StkAppService extends Service implements Runnable {
            launchIdleText();
         }
         if (mDisplayText) {
-            if (!mScreenIdle) {
+
+            /*
+             * Check if the screen is NOT idle and also to check if the top most
+             * activity visible is not 'us'. We are never busy to ourselves.
+             */
+            if (!mScreenIdle && !isTopOfStack()) {
                 sendScreenBusyResponse();
             } else {
                 launchTextDialog();
@@ -402,6 +408,18 @@ public class StkAppService extends Service implements Runnable {
                 sendBroadcast(StkIntent);
             }
         }
+    }
+
+    private boolean isTopOfStack() {
+        ActivityManager mAcivityManager = (ActivityManager) mContext
+                .getSystemService(ACTIVITY_SERVICE);
+        String currentPackageName = mAcivityManager.getRunningTasks(1).get(0).topActivity
+                .getPackageName();
+        if (null != currentPackageName) {
+            return currentPackageName.equals(PACKAGE_NAME);
+        }
+
+        return false;
     }
 
     private void sendScreenBusyResponse() {
@@ -562,7 +580,6 @@ public class StkAppService extends Service implements Runnable {
             break;
         case SET_UP_IDLE_MODE_TEXT:
             waitForUsersResponse = false;
-            launchIdleText();
             mIdleModeTextCmd = mCurrentCmd;
             TextMessage idleModeText = mCurrentCmd.geTextMessage();
             // Send intent to ActivityManagerService to get the screen status
@@ -972,6 +989,8 @@ public class StkAppService extends Service implements Runnable {
             intent.addFlags(Intent.FLAG_ACTIVITY_MULTIPLE_TASK);
             break;
         case LAUNCH_IF_NOT_ALREADY_LAUNCHED:
+            if(data != null)
+                intent.setAction(Intent.ACTION_VIEW);
             intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
             break;
         }
@@ -1011,19 +1030,39 @@ public class StkAppService extends Service implements Runnable {
         }
         msg.title = lastSelectedItem;
 
-        Toast toast = Toast.makeText(mContext.getApplicationContext(), msg.text,
-                Toast.LENGTH_LONG);
+        Toast toast = new Toast(mContext.getApplicationContext());
+        LayoutInflater inflate = (LayoutInflater) mContext
+                .getSystemService(Context.LAYOUT_INFLATER_SERVICE);
+        View v = inflate.inflate(R.layout.stk_event_msg, null);
+        TextView tv = (TextView) v
+                .findViewById(com.android.internal.R.id.message);
+        ImageView iv = (ImageView) v
+                .findViewById(com.android.internal.R.id.icon);
+        if (msg.icon != null) {
+            iv.setImageBitmap(msg.icon);
+        } else {
+            iv.setVisibility(View.GONE);
+        }
+        /**
+         * In case of 'self explanatory' stkapp should display the specified
+         * icon in proactive command (but not the alpha string). If icon is
+         * non-self explanatory and if the icon could not be displayed then
+         * alpha string or text data should be displayed
+         **/
+        if (msg.icon == null || !msg.iconSelfExplanatory) {
+            tv.setText(msg.text);
+        }
+
+        toast.setView(v);
+        toast.setDuration(Toast.LENGTH_LONG);
         toast.setGravity(Gravity.BOTTOM, 0, 0);
         toast.show();
+
     }
 
     private void launchIdleText() {
-        TextMessage msg = mCurrentCmd.geTextMessage();
-        if (msg == null) {
-            CatLog.d(this, "mCurrentCmd.getTextMessage is NULL");
-            return;
-        }
-        if (msg.text == null) {
+        TextMessage msg = mIdleModeTextCmd.geTextMessage();
+        if (msg.text == null || mScreenIdle == false) {
             mNotificationManager.cancel(STK_NOTIFICATION_ID);
         } else {
             Notification notification = new Notification();
@@ -1039,7 +1078,7 @@ public class StkAppService extends Service implements Runnable {
              ** then alpha string or text data should be displayed
              ** Ref: ETSI 102.223,section 6.5.4
              **/
-            if (mCurrentCmd.hasIconLoadFailed() || !msg.iconSelfExplanatory) {
+            if (mIdleModeTextCmd.hasIconLoadFailed() || !msg.iconSelfExplanatory) {
                 notification.tickerText = msg.text;
                 contentView.setTextViewText(com.android.internal.R.id.text,
                         msg.text);
