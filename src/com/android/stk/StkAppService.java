@@ -443,9 +443,7 @@ public class StkAppService extends Service implements Runnable {
             // If an idle text proactive command is set then the
             // request for getting screen status still holds true.
             if (mIdleModeTextCmd == null) {
-                Intent StkIntent = new Intent(AppInterface.CHECK_SCREEN_IDLE_ACTION);
-                StkIntent.putExtra("SCREEN_STATUS_REQUEST", false);
-                sendBroadcast(StkIntent);
+                enableScreenStatusReq(false);
             }
         }
     }
@@ -586,9 +584,7 @@ public class StkAppService extends Service implements Runnable {
             //new display text proactive command (Refer to ETSI TS 102 384
             //section 27.22.4.1.4.4.2).
             if (!(msg.isHighPriority || mMenuIsVisibile || mDisplayTextDlgIsVisibile)) {
-                Intent StkIntent = new Intent(AppInterface.CHECK_SCREEN_IDLE_ACTION);
-                StkIntent.putExtra("SCREEN_STATUS_REQUEST",true);
-                sendBroadcast(StkIntent);
+                enableScreenStatusReq(true);
                 mDisplayText = true;
             } else {
                 launchTextDialog();
@@ -670,6 +666,8 @@ public class StkAppService extends Service implements Runnable {
             launchToneDialog();
             break;
         case SET_UP_EVENT_LIST:
+            CatLog.d(this," SETUP_EVENT_LIST");
+
             mSetupEventListSettings = mCurrentCmd.getSetEventList();
             mCurrentSetupEventCmd = mCurrentCmd;
             mCurrentCmd = mMainCmd;
@@ -679,9 +677,7 @@ public class StkAppService extends Service implements Runnable {
                     if (mSetupEventListSettings.eventList[i] == IDLE_SCREEN_AVAILABLE_EVENT) {
                         CatLog.d(this," IDLE_SCREEN_AVAILABLE_EVENT present in List");
                         // Request ActivityManagerService to get the screen status
-                        Intent StkIntent = new Intent(AppInterface.CHECK_SCREEN_IDLE_ACTION);
-                        StkIntent.putExtra("SCREEN_STATUS_REQUEST", true);
-                        sendBroadcast(StkIntent);
+                        enableScreenStatusReq(true);
                         break;
                     }
                 }
@@ -902,6 +898,7 @@ public class StkAppService extends Service implements Runnable {
                  }
             }
 
+
             /* If Event is present send the response to ICC */
             if (eventPresent == true) {
                 CatLog.d(this, " Event " + event + "exists in the EventList");
@@ -910,6 +907,7 @@ public class StkAppService extends Service implements Runnable {
                     case IDLE_SCREEN_AVAILABLE_EVENT:
                         sendSetUpEventResponse(event, addedInfo);
                         removeSetUpEvent(event);
+                        enableScreenStatusReq(false);
                         break;
                     case LANGUAGE_SELECTION_EVENT:
                         String language =  mContext.getResources().getConfiguration().locale.getLanguage();
@@ -1212,5 +1210,13 @@ public class StkAppService extends Service implements Runnable {
         Toast toast = Toast.makeText(this, alphaString, Toast.LENGTH_LONG);
         toast.setGravity(Gravity.TOP, 0, 0);
         toast.show();
+    }
+
+    private void enableScreenStatusReq(boolean enable) {
+        CatLog.d(this, "enableScreenStatusReq: " + enable);
+
+        Intent StkIntent = new Intent(AppInterface.CHECK_SCREEN_IDLE_ACTION);
+        StkIntent.putExtra("SCREEN_STATUS_REQUEST", enable);
+        sendBroadcast(StkIntent);
     }
 }
