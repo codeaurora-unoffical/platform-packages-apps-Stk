@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2007 The Android Open Source Project
+ * Copyright (c) 2011 Code Aurora Forum. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -34,6 +35,11 @@ abstract class StkApp extends Application {
 
     // UI timeout, 30 seconds - used for display dialog and activities.
     static final int UI_TIMEOUT = (40 * 1000);
+
+    // SELECT ITEM timeout, 10 seconds - used to clear SELECT ITEM.
+    // This is used to erase SELECT_ITEM when SELECT_ITEM response is
+    // delayed from the network.
+    static final int SELECT_ITEM_TIMEOUT = (10 * 1000);
 
     // Tone default timeout - 2 seconds
     static final int TONE_DFEAULT_TIMEOUT = (2 * 1000);
