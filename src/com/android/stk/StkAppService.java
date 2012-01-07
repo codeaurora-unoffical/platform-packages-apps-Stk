@@ -181,6 +181,7 @@ public class StkAppService extends Service {
 
         if (!catInstancePresent) {
             CatLog.d(this, " Unable to get Service handle for any Instance");
+            stopSelf();
             return;
         }
 
@@ -209,6 +210,7 @@ public class StkAppService extends Service {
         int  slotId = args.getInt(SLOT_ID);
         if (mStkService[slotId] == null) {
             CatLog.d(this, "Returning as CatService on"+ slotId+ "is null");
+            stopSelf();
             return;
         }
 
@@ -232,7 +234,7 @@ public class StkAppService extends Service {
         case OP_BOOT_COMPLETED:
             //Broadcast this event to other slots.
             for (int i = 0; i < mCardNum; i++) {
-                if (i != slotId) {
+                if ((i != slotId) && (mServiceHandler[i] != null)) {
                     Message tmpmsg = mServiceHandler[i].obtainMessage();
                     tmpmsg.arg1 = msg.arg1;
                     tmpmsg.obj = msg.obj;
@@ -250,7 +252,9 @@ public class StkAppService extends Service {
     public void onDestroy() {
         waitForLooper();
         for (int i = 0; i < mCardNum; i++) {
-            mHandlerThread[i].quit();
+            if (mHandlerThread[i] != null) {
+                mHandlerThread[i].quit();
+            }
         }
         sInstance = null;
     }
