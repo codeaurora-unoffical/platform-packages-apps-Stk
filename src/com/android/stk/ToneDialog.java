@@ -38,6 +38,7 @@ public class ToneDialog extends Activity {
     TextMessage toneMsg = null;
     ToneSettings settings = null;
     TonePlayer player = null;
+    private int mSlotId = 0;
 
     /**
      * Handler used to stop tones from playing when the duration ends.
@@ -122,12 +123,14 @@ public class ToneDialog extends Activity {
         }
         toneMsg = intent.getParcelableExtra("TEXT");
         settings = intent.getParcelableExtra("TONE");
+        mSlotId = intent.getIntExtra(StkAppService.SLOT_ID, 0);
     }
 
     private void sendResponse(int resId) {
         Bundle args = new Bundle();
         args.putInt(StkAppService.OPCODE, StkAppService.OP_RESPONSE);
         args.putInt(StkAppService.RES_ID, resId);
+        args.putInt(StkAppService.SLOT_ID, mSlotId);
         startService(new Intent(this, StkAppService.class).putExtras(args));
     }
 }
