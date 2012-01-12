@@ -1134,17 +1134,10 @@ public class StkAppService extends Service {
                 CatLog.d(this, "modifiedUrl = " + modifiedUrl);
                 data = Uri.parse(modifiedUrl);
             }
-        } else {
-            // If no URL specified, just bring up the "home page".
-            //
-            // (Note we need to specify *something* in the intent's data field
-            // here, since if you fire off a VIEW intent with no data at all
-            // you'll get an activity chooser rather than the browser.  There's
-            // no specific URI that means "use the default home page", so
-            // instead let's just explicitly bring up http://google.com.)
-            data = Uri.parse("http://google.com/");
         }
-        intent.setData(data);
+        if (data != null) {
+            intent.setData(data);
+        }
         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
         switch (settings.mode) {
         case USE_EXISTING_BROWSER:
@@ -1156,8 +1149,9 @@ public class StkAppService extends Service {
             intent.addFlags(Intent.FLAG_ACTIVITY_MULTIPLE_TASK);
             break;
         case LAUNCH_IF_NOT_ALREADY_LAUNCHED:
-            if(data != null)
+            if (data != null) {
                 intent.setAction(Intent.ACTION_VIEW);
+            }
             intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
             break;
         }
