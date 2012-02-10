@@ -164,9 +164,8 @@ public class StkAppService extends Service {
         boolean catInstancePresent = false;
 
         for (int i = 0; i < mCardNum; i++) {
-            if (( mUiccManager != null) && (mUiccManager.getUiccCard() != null)) {
-                mStkService[i] = com.android.internal.telephony.UiccManager
-                        .getInstance().getUiccCard(i).getCatService();
+            if ( mUiccManager != null ) {
+                mStkService[i] = mUiccManager.getCatService(i);
             }
             if (mStkService[i] == null) {
                 CatLog.d(this, " GetCatServiceInstance for "+ i+ "is null: ");
