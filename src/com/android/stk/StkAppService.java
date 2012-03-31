@@ -19,11 +19,13 @@ package com.android.stk;
 
 import android.app.ActivityManager;
 import android.app.ActivityManager.RunningTaskInfo;
+import android.app.AlertDialog;
 import android.app.Notification;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.app.Service;
 import android.content.Context;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.ComponentName;
 import android.content.res.Configuration;
@@ -40,6 +42,8 @@ import android.telephony.TelephonyManager;
 import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.View;
+import android.view.Window;
+import android.view.WindowManager;
 import android.widget.ImageView;
 import android.widget.RemoteViews;
 import android.widget.TextView;
@@ -109,6 +113,8 @@ public class StkAppService extends Service {
     static final String SETUP_EVENT_TYPE = "event";
     static final String SETUP_EVENT_CAUSE = "cause";
 
+    static final String CHOICE = "choice";
+
     // operations ids for different service functionality.
     static final int OP_CMD = 1;
     static final int OP_RESPONSE = 2;
@@ -129,11 +135,15 @@ public class StkAppService extends Service {
     static final int RES_ID_INPUT = 12;
     static final int RES_ID_CONFIRM = 13;
     static final int RES_ID_DONE = 14;
+    static final int RES_ID_CHOICE = 15;
 
     static final int RES_ID_TIMEOUT = 20;
     static final int RES_ID_BACKWARD = 21;
     static final int RES_ID_END_SESSION = 22;
     static final int RES_ID_EXIT = 23;
+
+    static final int YES = 1;
+    static final int NO = 0;
 
     private static final String PACKAGE_NAME = "com.android.stk";
     private static final String MENU_ACTIVITY_NAME =
@@ -589,6 +599,9 @@ public class StkAppService extends Service {
         case SET_UP_IDLE_MODE_TEXT:
         case SET_UP_MENU:
         case SET_UP_EVENT_LIST:
+        case CLOSE_CHANNEL:
+        case RECEIVE_DATA:
+        case SEND_DATA:
             return false;
         }
 
@@ -734,15 +747,9 @@ public class StkAppService extends Service {
         case LAUNCH_BROWSER:
             launchConfirmationDialog(mCurrentCmd.geTextMessage());
             break;
-        case CLOSE_CHANNEL:
-        case RECEIVE_DATA:
-        case SEND_DATA:
         case GET_CHANNEL_STATUS:
             waitForUsersResponse = false;
             launchEventMessage();
-            break;
-        case OPEN_CHANNEL:
-            launchConfirmationDialog(mCurrentCmd.getCallSettings().confirmMsg);
             break;
         case SET_UP_CALL:
             TextMessage mesg = mCurrentCmd.getCallSettings().confirmMsg;
@@ -772,6 +779,29 @@ public class StkAppService extends Service {
                     }
                 }
             }
+            break;
+        case OPEN_CHANNEL:
+            launchOpenChannelDialog();
+            break;
+        case CLOSE_CHANNEL:
+        case RECEIVE_DATA:
+        case SEND_DATA:
+            TextMessage m = mCurrentCmd.geTextMessage();
+
+            if ((m != null) && (m.text == null)) {
+                switch(cmdMsg.getCmdType()) {
+                case CLOSE_CHANNEL:
+                    m.text = getResources().getString(R.string.default_close_channel_msg);
+                    break;
+                case RECEIVE_DATA:
+                    m.text = getResources().getString(R.string.default_receive_data_msg);
+                    break;
+                case SEND_DATA:
+                    m.text = getResources().getString(R.string.default_send_data_msg);
+                    break;
+                }
+            }
+            launchTransientEventMessage();
             break;
         }
 
@@ -908,6 +938,18 @@ public class StkAppService extends Service {
                 resMsg.setResultCode(ResultCode.OK);
             } else {
                 resMsg.setResultCode(ResultCode.NO_RESPONSE_FROM_USER);
+            }
+            break;
+        case RES_ID_CHOICE:
+            int choice = args.getInt(CHOICE);
+            CatLog.d(this, "User Choice=" + choice);
+            switch (choice) {
+                case YES:
+                    resMsg.setResultCode(ResultCode.OK);
+                    break;
+                case NO:
+                    resMsg.setResultCode(ResultCode.USER_NOT_ACCEPT);
+                    break;
             }
             break;
         default:
@@ -1117,12 +1159,9 @@ public class StkAppService extends Service {
         if (settings == null) {
             return;
         }
-        // Set browser launch mode
-        Intent intent = new Intent();
-        intent.setClassName("com.android.browser",
-                "com.android.browser.BrowserActivity");
 
-        // to launch home page, make sure that data Uri is null.
+        Intent intent = new Intent(Intent.ACTION_VIEW);
+
         Uri data = null;
         if (settings.url != null) {
             CatLog.d(this, "settings.url = " + settings.url);
@@ -1137,14 +1176,13 @@ public class StkAppService extends Service {
         if (data != null) {
             intent.setData(data);
         }
+
         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
         switch (settings.mode) {
         case USE_EXISTING_BROWSER:
-            intent.setAction(Intent.ACTION_VIEW);
             intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
             break;
         case LAUNCH_NEW_BROWSER:
-            intent.setAction(Intent.ACTION_VIEW);
             intent.addFlags(Intent.FLAG_ACTIVITY_MULTIPLE_TASK);
             break;
         case LAUNCH_IF_NOT_ALREADY_LAUNCHED:
@@ -1303,6 +1341,88 @@ public class StkAppService extends Service {
         if (settings.vibrate) {
             mVibrator.vibrate(timeout);
         }
+    }
+
+    private void launchOpenChannelDialog() {
+        TextMessage msg = mCurrentCmd.geTextMessage();
+        if (msg == null) {
+            CatLog.d(this, "msg is null, return here");
+            return;
+        }
+
+        msg.title = getResources().getString(R.string.stk_dialog_title);
+        if (msg.text == null) {
+            msg.text = getResources().getString(R.string.default_open_channel_msg);
+        }
+
+        final AlertDialog dialog = new AlertDialog.Builder(mContext)
+                    .setIconAttribute(android.R.attr.alertDialogIcon)
+                    .setTitle(msg.title)
+                    .setMessage(msg.text)
+                    .setCancelable(false)
+                    .setPositiveButton(getResources().getString(R.string.stk_dialog_accept),
+                                       new DialogInterface.OnClickListener() {
+                        public void onClick(DialogInterface dialog, int which) {
+                            Bundle args = new Bundle();
+                            args.putInt(RES_ID, RES_ID_CHOICE);
+                            args.putInt(CHOICE, YES);
+                            Message message = obtainMessage();
+                            message.arg1 = OP_RESPONSE;
+                            message.obj = args;
+                            sendMessage(message);
+                        }
+                    })
+                    .setNegativeButton(getResources().getString(R.string.stk_dialog_reject),
+                                       new DialogInterface.OnClickListener() {
+                        public void onClick(DialogInterface dialog, int which) {
+                            Bundle args = new Bundle();
+                            args.putInt(RES_ID, RES_ID_CHOICE);
+                            args.putInt(CHOICE, NO);
+                            Message message = obtainMessage();
+                            message.arg1 = OP_RESPONSE;
+                            message.obj = args;
+                            sendMessage(message);
+                        }
+                    })
+                    .create();
+
+        dialog.getWindow().setType(WindowManager.LayoutParams.TYPE_SYSTEM_ALERT);
+        if (!mContext.getResources().getBoolean(
+                com.android.internal.R.bool.config_sf_slowBlur)) {
+            dialog.getWindow().addFlags(WindowManager.LayoutParams.FLAG_BLUR_BEHIND);
+        }
+
+        dialog.show();
+    }
+
+    private void launchTransientEventMessage() {
+        TextMessage msg = mCurrentCmd.geTextMessage();
+        if (msg == null) {
+            CatLog.d(this, "msg is null, return here");
+            return;
+        }
+
+        msg.title = getResources().getString(R.string.stk_dialog_title);
+
+        final AlertDialog dialog = new AlertDialog.Builder(mContext)
+                    .setIconAttribute(android.R.attr.alertDialogIcon)
+                    .setTitle(msg.title)
+                    .setMessage(msg.text)
+                    .setCancelable(false)
+                    .setPositiveButton(getResources().getString(android.R.string.ok),
+                                       new DialogInterface.OnClickListener() {
+                        public void onClick(DialogInterface dialog, int which) {
+                        }
+                    })
+                    .create();
+
+        dialog.getWindow().setType(WindowManager.LayoutParams.TYPE_SYSTEM_ALERT);
+        if (!mContext.getResources().getBoolean(
+                com.android.internal.R.bool.config_sf_slowBlur)) {
+            dialog.getWindow().addFlags(WindowManager.LayoutParams.FLAG_BLUR_BEHIND);
+        }
+
+        dialog.show();
     }
 
     private String getItemName(int itemId) {
