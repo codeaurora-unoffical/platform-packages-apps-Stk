@@ -836,6 +836,7 @@ public class StkAppService extends Service {
 
         // set result code
         boolean helpRequired = args.getBoolean(HELP, false);
+        boolean confirmed    = false;
 
         switch(args.getInt(RES_ID)) {
         case RES_ID_MENU_SELECTION:
@@ -876,7 +877,7 @@ public class StkAppService extends Service {
             break;
         case RES_ID_CONFIRM:
             CatLog.d(this, "RES_ID_CONFIRM");
-            boolean confirmed = args.getBoolean(CONFIRMATION);
+            confirmed = args.getBoolean(CONFIRMATION);
             switch (mCurrentCmd.getCmdType()) {
             case DISPLAY_TEXT:
                 if (confirmed) {
@@ -905,7 +906,6 @@ public class StkAppService extends Service {
                     launchBrowser = true;
                 }
                 break;
-            case OPEN_CHANNEL:
             case SET_UP_CALL:
                 resMsg.setResultCode(ResultCode.OK);
                 resMsg.setConfirmation(confirmed);
@@ -946,12 +946,19 @@ public class StkAppService extends Service {
             switch (choice) {
                 case YES:
                     resMsg.setResultCode(ResultCode.OK);
+                    confirmed = true;
                     break;
                 case NO:
                     resMsg.setResultCode(ResultCode.USER_NOT_ACCEPT);
                     break;
             }
+
+            if (mCurrentCmd.getCmdType().value() == AppInterface.CommandType.OPEN_CHANNEL
+                    .value()) {
+                resMsg.setConfirmation(confirmed);
+            }
             break;
+
         default:
             CatLog.d(this, "Unknown result id");
             return;
