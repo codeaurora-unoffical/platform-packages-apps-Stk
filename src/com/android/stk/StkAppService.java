@@ -800,7 +800,10 @@ public class StkAppService extends Service {
                     break;
                 }
             }
-            launchTransientEventMessage();
+            /*
+             * Display indication in the form of a toast to the user if required.
+             */
+            launchEventMessage();
             break;
         }
 
