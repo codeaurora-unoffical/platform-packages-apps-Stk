@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2007 The Android Open Source Project
- * Copyright (c) 2011 Code Aurora Forum. All rights reserved.
+ * Copyright (c) 2011-2012 Code Aurora Forum. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -82,6 +82,8 @@ public class StkCmdReceiver extends BroadcastReceiver {
         args.putString(AppInterface.ALPHA_STRING, alphaString);
         args.putInt(StkAppService.SLOT_ID, intent
                 .getIntExtra("SLOT_ID",0));
+        context.startService(new Intent(context, StkAppService.class)
+                .putExtras(args));
     }
 
     private void handleScreenStatus(Context context) {
