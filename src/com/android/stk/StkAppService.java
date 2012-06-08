@@ -951,7 +951,12 @@ public class StkAppService extends Service {
                     confirmed = true;
                     break;
                 case NO:
-                    resMsg.setResultCode(ResultCode.USER_NOT_ACCEPT);
+                    if (mCurrentCmd.getCmdType().value() == AppInterface.CommandType.
+                         OPEN_CHANNEL.value()) {
+                        resMsg.setResultCode(ResultCode.OK);
+                    } else {
+                        resMsg.setResultCode(ResultCode.USER_NOT_ACCEPT);
+                    }
                     break;
             }
 
