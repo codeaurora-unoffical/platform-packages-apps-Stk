@@ -144,19 +144,6 @@ public class StkAppService extends Service implements Runnable {
     @Override
     public void onCreate() {
         // Initialize members
-        mStkService = com.android.internal.telephony.cat.CatService
-                .getInstance();
-
-        // NOTE mStkService is a singleton and continues to exist even if the GSMPhone is disposed
-        //   after the radio technology change from GSM to CDMA so the PHONE_TYPE_CDMA check is
-        //   needed. In case of switching back from CDMA to GSM the GSMPhone constructor updates
-        //   the instance. (TODO: test).
-        if ((mStkService == null)
-                && (TelephonyManager.getDefault().getPhoneType()
-                                != TelephonyManager.PHONE_TYPE_CDMA)) {
-            CatLog.d(this, " Unable to get Service handle");
-            return;
-        }
 
         mCmdsQ = new LinkedList<DelayedCmd>();
         Thread serviceThread = new Thread(null, this, "Stk App Service");
@@ -169,8 +156,17 @@ public class StkAppService extends Service implements Runnable {
 
     @Override
     public void onStart(Intent intent, int startId) {
-        waitForLooper();
 
+        mStkService = com.android.internal.telephony.cat.CatService
+                .getInstance();
+
+        if (mStkService == null) {
+            stopSelf();
+            CatLog.d(this, " Unable to get Service handle");
+            return;
+        }
+
+        waitForLooper();
         // onStart() method can be passed a null intent
         // TODO: replace onStart() with onStartCommand()
         if (intent == null) {
