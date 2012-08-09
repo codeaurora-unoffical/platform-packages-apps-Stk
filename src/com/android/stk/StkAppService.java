@@ -124,6 +124,7 @@ public class StkAppService extends Service implements Runnable {
 
     //Invalid SetupEvent
     static final int INVALID_SETUP_EVENT = 0xFF;
+    static final int OP_ALPHA_NOTIFY = 30;
 
     // Response ids
     static final int RES_ID_MENU_SELECTION = 11;
@@ -211,6 +212,7 @@ public class StkAppService extends Service implements Runnable {
             break;
         case OP_RESPONSE:
         case OP_LOCALE_CHANGED:
+        case OP_ALPHA_NOTIFY:
             msg.obj = args;
             /* falls through */
         case OP_LAUNCH_APP:
@@ -347,6 +349,9 @@ public class StkAppService extends Service implements Runnable {
             case OP_LOCALE_CHANGED:
                 CatLog.d(this, "Locale Changed");
                 checkForSetupEvent(LANGUAGE_SELECTION_EVENT,(Bundle) msg.obj);
+                break;
+            case OP_ALPHA_NOTIFY:
+                handleAlphaNotify((Bundle) msg.obj);
                 break;
             }
         }
@@ -1130,5 +1135,14 @@ public class StkAppService extends Service implements Runnable {
             return true;
         }
         return false;
+    }
+
+    private void handleAlphaNotify(Bundle args) {
+        String alphaString = args.getString(AppInterface.ALPHA_STRING);
+
+        CatLog.d(this, "Alpha string received from card: " + alphaString);
+        Toast toast = Toast.makeText(this, alphaString, Toast.LENGTH_LONG);
+        toast.setGravity(Gravity.TOP, 0, 0);
+        toast.show();
     }
 }
