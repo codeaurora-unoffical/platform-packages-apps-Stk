@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2007 The Android Open Source Project
+ * Copyright (c) 2011, 2012 Code Aurora Forum. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -29,15 +30,15 @@ import android.content.pm.PackageManager;
 abstract class StkAppInstaller {
     private StkAppInstaller() {}
 
-    static void install(Context context) {
-        setAppState(context, true);
+    static void install(Context context, int slotId) {
+        setAppState(context, true, slotId);
     }
 
-    static void unInstall(Context context) {
-        setAppState(context, false);
+    static void unInstall(Context context, int slotId) {
+        setAppState(context, false, slotId);
     }
 
-    private static void setAppState(Context context, boolean install) {
+    private static void setAppState(Context context, boolean install, int slotId) {
         if (context == null) {
             return;
         }
@@ -45,9 +46,17 @@ abstract class StkAppInstaller {
         if (pm == null) {
             return;
         }
+        ComponentName cName;
+
         // check that STK app package is known to the PackageManager
-        ComponentName cName = new ComponentName("com.android.stk",
-                "com.android.stk.StkLauncherActivity");
+        if (slotId == 0) {
+            cName = new ComponentName("com.android.stk",
+                    "com.android.stk.StkLauncherActivity");
+        } else {
+            cName = new ComponentName("com.android.stk",
+            "com.android.stk.StkLauncherActivity2");
+        }
+
         int state = install ? PackageManager.COMPONENT_ENABLED_STATE_ENABLED
                 : PackageManager.COMPONENT_ENABLED_STATE_DISABLED;
 

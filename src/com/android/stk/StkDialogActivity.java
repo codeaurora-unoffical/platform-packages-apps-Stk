@@ -42,6 +42,7 @@ public class StkDialogActivity extends Activity implements View.OnClickListener 
     int  dialogDuration = 0;
 
     StkAppService appService = StkAppService.getInstance();
+    private int mSlotId = 0;
 
     Handler mTimeoutHandler = new Handler() {
         @Override
@@ -111,7 +112,7 @@ public class StkDialogActivity extends Activity implements View.OnClickListener 
     public void onResume() {
         super.onResume();
 
-        appService.indicateDisplayTextDlgVisibility(true);
+        appService.indicateDisplayTextDlgVisibility(true, mSlotId);
 
         initFromIntent(getIntent());
         if (mTextMsg == null) {
@@ -157,7 +158,7 @@ public class StkDialogActivity extends Activity implements View.OnClickListener 
     @Override
     public void onPause() {
         super.onPause();
-
+        appService.indicateDisplayTextDlgVisibility(false, mSlotId);
         /*
          * do not cancel the timer here cancelTimeOut(). If any higher/lower
          * priority events such as incoming call, new sms, screen off intent,
@@ -167,9 +168,6 @@ public class StkDialogActivity extends Activity implements View.OnClickListener 
          * cancellation of the timer. As a result no terminal response is
          * sent to the card.
          */
-
-        appService.indicateDisplayTextDlgVisibility(false);
-
     }
 
     @Override
@@ -197,6 +195,7 @@ public class StkDialogActivity extends Activity implements View.OnClickListener 
         args.putInt(StkAppService.OPCODE, StkAppService.OP_RESPONSE);
         args.putInt(StkAppService.RES_ID, resId);
         args.putBoolean(StkAppService.CONFIRMATION, confirmed);
+        args.putInt(StkAppService.SLOT_ID, mSlotId);
         startService(new Intent(this, StkAppService.class).putExtras(args));
     }
 
