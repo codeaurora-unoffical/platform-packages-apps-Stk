@@ -105,6 +105,7 @@ public class StkInputActivity extends Activity implements View.OnClickListener,
             break;
         }
 
+        cancelTimeOut();
         sendResponse(StkAppService.RES_ID_INPUT, input, false);
         finish();
     }
@@ -175,6 +176,7 @@ public class StkInputActivity extends Activity implements View.OnClickListener,
     public boolean onKeyDown(int keyCode, KeyEvent event) {
         switch (keyCode) {
         case KeyEvent.KEYCODE_BACK:
+            cancelTimeOut();
             sendResponse(StkAppService.RES_ID_BACKWARD, null, false);
             finish();
             break;
@@ -222,10 +224,12 @@ public class StkInputActivity extends Activity implements View.OnClickListener,
     public boolean onOptionsItemSelected(MenuItem item) {
         switch (item.getItemId()) {
         case StkApp.MENU_ID_END_SESSION:
+            cancelTimeOut();
             sendResponse(StkAppService.RES_ID_END_SESSION);
             finish();
             return true;
         case StkApp.MENU_ID_HELP:
+            cancelTimeOut();
             sendResponse(StkAppService.RES_ID_INPUT, "", true);
             finish();
             return true;
