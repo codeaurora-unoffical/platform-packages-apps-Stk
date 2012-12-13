@@ -1369,6 +1369,7 @@ public class StkAppService extends Service {
                             Bundle args = new Bundle();
                             args.putInt(RES_ID, RES_ID_CHOICE);
                             args.putInt(CHOICE, YES);
+                            args.putInt(SLOT_ID, mCurrentSlotId);
                             Message message = obtainMessage();
                             message.arg1 = OP_RESPONSE;
                             message.obj = args;
@@ -1381,6 +1382,7 @@ public class StkAppService extends Service {
                             Bundle args = new Bundle();
                             args.putInt(RES_ID, RES_ID_CHOICE);
                             args.putInt(CHOICE, NO);
+                            args.putInt(SLOT_ID, mCurrentSlotId);
                             Message message = obtainMessage();
                             message.arg1 = OP_RESPONSE;
                             message.obj = args;
