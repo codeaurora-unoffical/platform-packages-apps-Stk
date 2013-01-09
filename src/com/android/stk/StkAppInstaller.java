@@ -52,9 +52,12 @@ abstract class StkAppInstaller {
         if (slotId == 0) {
             cName = new ComponentName("com.android.stk",
                     "com.android.stk.StkLauncherActivity");
-        } else {
+        } else if (slotId == 1) {
             cName = new ComponentName("com.android.stk",
             "com.android.stk.StkLauncherActivity2");
+        } else {
+            cName = new ComponentName("com.android.stk",
+            "com.android.stk.StkLauncherActivity3");
         }
 
         int state = install ? PackageManager.COMPONENT_ENABLED_STATE_ENABLED
