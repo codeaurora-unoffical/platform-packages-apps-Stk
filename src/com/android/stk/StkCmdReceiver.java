@@ -103,13 +103,6 @@ public class StkCmdReceiver extends BroadcastReceiver {
     }
 
     private void handleCardStatusChange(Context context, Intent intent) {
-        // If the Card is absent then check if the StkAppService is even
-        // running before starting it to stop it right away
-        if ((intent.getBooleanExtra(AppInterface.CARD_STATUS, false) == false)
-                && StkAppService.getInstance() == null) {
-            //CatLog.d(this, "No need to start the StkAppService just to stop it again");
-            return;
-        }
         Bundle args = new Bundle();
         args.putInt(StkAppService.OPCODE, StkAppService.OP_CARD_STATUS_CHANGED);
         args.putBoolean(AppInterface.CARD_STATUS,
