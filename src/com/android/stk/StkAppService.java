@@ -636,7 +636,6 @@ public class StkAppService extends Service {
             break;
         case SET_UP_IDLE_MODE_TEXT:
             waitForUsersResponse = false;
-            launchIdleText();
             mIdleModeTextCmd = mCurrentCmd;
             TextMessage idleModeText = mCurrentCmd.geTextMessage();
             // Send intent to ActivityManagerService to get the screen status
@@ -1130,7 +1129,7 @@ public class StkAppService extends Service {
     }
 
     private void launchIdleText() {
-        TextMessage msg = mCurrentCmd.geTextMessage();
+        TextMessage msg = mIdleModeTextCmd.geTextMessage();
 
         if (msg == null) {
             CatLog.d(this, "mCurrent.getTextMessage is NULL");
@@ -1153,7 +1152,7 @@ public class StkAppService extends Service {
              ** then alpha string or text data should be displayed
              ** Ref: ETSI 102.223,section 6.5.4
              **/
-            if (mCurrentCmd.hasIconLoadFailed() || !msg.iconSelfExplanatory) {
+            if (mIdleModeTextCmd.hasIconLoadFailed() || !msg.iconSelfExplanatory) {
                 notification.tickerText = msg.text;
                 contentView.setTextViewText(com.android.internal.R.id.text,
                         msg.text);
