@@ -585,7 +585,7 @@ public class StkAppService extends Service {
         switch (cmdMsg.getCmdType()) {
         case DISPLAY_TEXT:
             TextMessage msg = cmdMsg.geTextMessage();
-            responseNeeded = msg.responseNeeded;
+            responseNeeded = waitForUsersResponse = msg.responseNeeded;
             if (lastSelectedItem != null) {
                 msg.title = lastSelectedItem;
             } else if (mMainCmd != null){
