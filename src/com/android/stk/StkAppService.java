@@ -119,6 +119,7 @@ public class StkAppService extends Service {
     static final int OP_IDLE_SCREEN = 7;
     static final int OP_LOCALE_CHANGED = 8;
     static final int OP_CARD_STATUS_CHANGED = 9;
+    static final int OP_ALPHA_NOTIFY = 10;
 
     //Invalid SetupEvent
     static final int INVALID_SETUP_EVENT = 0xFF;
@@ -189,6 +190,7 @@ public class StkAppService extends Service {
             msg.obj = args.getParcelable(CMD_MSG);
             break;
         case OP_RESPONSE:
+        case OP_ALPHA_NOTIFY:
             msg.obj = args;
             /* falls through */
         case OP_LAUNCH_APP:
@@ -448,6 +450,9 @@ public class StkAppService extends Service {
             case OP_CARD_STATUS_CHANGED:
                 CatLog.d(this, "Card/Icc Status change received");
                 handleCardStatusChangeAndIccRefresh((Bundle) msg.obj);
+                break;
+            case OP_ALPHA_NOTIFY:
+                handleAlphaNotify((Bundle) msg.obj);
                 break;
             }
         }
@@ -1344,5 +1349,15 @@ public class StkAppService extends Service {
         }
         return false;
     }
+
+    private void handleAlphaNotify(Bundle args) {
+        String alphaString = args.getString(AppInterface.ALPHA_STRING);
+
+        CatLog.d(this, "Alpha string received from card: " + alphaString);
+        Toast toast = Toast.makeText(sInstance, alphaString, Toast.LENGTH_LONG);
+        toast.setGravity(Gravity.TOP, 0, 0);
+        toast.show();
+    }
+
     } // End of Service Handler class
 }
