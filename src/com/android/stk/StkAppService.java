@@ -81,8 +81,8 @@ public class StkAppService extends Service {
     private Context mContext = null;
     private NotificationManager mNotificationManager = null;
     private HandlerThread[] mHandlerThread;
-    private int mCardNum = 0;
-    private int mCatServicesNum = 0;
+    private int mPhoneCount = 0;
+    private MSimUiccController mUiccController = null;
     static StkAppService sInstance = null;
 
     // Used for setting FLAG_ACTIVITY_NO_USER_ACTION when
@@ -119,6 +119,7 @@ public class StkAppService extends Service {
     static final int OP_IDLE_SCREEN = 7;
     static final int OP_LOCALE_CHANGED = 8;
     static final int OP_CARD_STATUS_CHANGED = 9;
+    static final int OP_ALPHA_NOTIFY = 10;
 
     //Invalid SetupEvent
     static final int INVALID_SETUP_EVENT = 0xFF;
@@ -149,14 +150,13 @@ public class StkAppService extends Service {
 
     @Override
     public void onCreate() {
-        // Get number of Cards
-        mCardNum = android.telephony.MSimTelephonyManager.getDefault().getPhoneCount();
-        mStkService = new AppInterface[mCardNum];
-        mHandlerThread = new HandlerThread[mCardNum];
-        mServiceHandler = new ServiceHandler[mCardNum];
+        // Get Phone count
+        mPhoneCount = android.telephony.MSimTelephonyManager.getDefault().getPhoneCount();
+        mStkService = new AppInterface[mPhoneCount];
+        mHandlerThread = new HandlerThread[mPhoneCount];
+        mServiceHandler = new ServiceHandler[mPhoneCount];
 
-        CatLog.d(this, " Number of Cards present:" + mCardNum);
-
+        updateCatServiceAndInitHandlerThread();
         mContext = getBaseContext();
         mNotificationManager = (NotificationManager) mContext
                 .getSystemService(Context.NOTIFICATION_SERVICE);
@@ -170,14 +170,6 @@ public class StkAppService extends Service {
         // onStart() method can be passed a null intent
         // TODO: replace onStart() with onStartCommand()
         if (intent == null) {
-            return;
-        }
-
-        initCatServiceAndHandlerThread();
-
-        if (mCatServicesNum != mCardNum) {
-            CatLog.d(this, "Returning as all CatServices are not running");
-            stopSelf();
             return;
         }
 
@@ -198,6 +190,7 @@ public class StkAppService extends Service {
             msg.obj = args.getParcelable(CMD_MSG);
             break;
         case OP_RESPONSE:
+        case OP_ALPHA_NOTIFY:
             msg.obj = args;
             /* falls through */
         case OP_LAUNCH_APP:
@@ -210,7 +203,7 @@ public class StkAppService extends Service {
             /* fall through */
         case OP_BOOT_COMPLETED:
             //Broadcast this event to other slots.
-            for (int i = 0; i < mCardNum; i++) {
+            for (int i = 0; i < mPhoneCount; i++) {
                 if ((i != slotId) && (mServiceHandler[i] != null)) {
                     Message tmpmsg = mServiceHandler[i].obtainMessage();
                     tmpmsg.arg1 = msg.arg1;
@@ -225,44 +218,42 @@ public class StkAppService extends Service {
         mServiceHandler[slotId].sendMessage(msg);
     }
 
-    private void initCatServiceAndHandlerThread() {
+    private void updateCatServiceAndInitHandlerThread() {
         // Get cat service instance and create handler
         if (android.telephony.MSimTelephonyManager.getDefault().isMultiSimEnabled()) {
-            MSimUiccController mUiccController = null;
             mUiccController = MSimUiccController.getInstance();
-            CatLog.d(this, " GetInstance: " + mUiccController);
-            if ((mCatServicesNum != mCardNum) && (mUiccController != null)) {
+            CatLog.d(this, "UiccController GetInstance: " + mUiccController);
 
-                for (int i = 0; i < mCardNum; i++) {
-                    if ( mUiccController.getUiccCard(i) != null &&
-                            mStkService[i] == null) {
-                        mStkService[i] = ((MSimUiccCard)(mUiccController.getUiccCard(i))).
-                                getCatService();
-                        if (mStkService[i] == null) {
-                            CatLog.d(this, " GetCatServiceInstance for " + i + "is null: ");
-                        } else {
-                            mCatServicesNum++;
-                            mHandlerThread[i] = new HandlerThread("ServiceHandler" + i);
-                            mHandlerThread[i].start();
-                            // Get the HandlerThread's Looper and use it for our Handler
-                            mServiceHandler[i] = new ServiceHandler(mHandlerThread[i].
-                                    getLooper(), i);
-                        }
-                    }
-                }
+            for (int i = 0; i < mPhoneCount; i++) {
+                mHandlerThread[i] = new HandlerThread("ServiceHandler" + i);
+                mHandlerThread[i].start();
+                // Get the HandlerThread's Looper and use it for our Handler
+                mServiceHandler[i] = new ServiceHandler(mHandlerThread[i].
+                        getLooper(), i);
+                updateCatService(i);
             }
-        } else if (mCatServicesNum != mCardNum) {
+        } else {
             mStkService[0] = com.android.internal.telephony.cat.CatService.getInstance();
-            mCatServicesNum++;
             mHandlerThread[0] = new HandlerThread("ServiceHandler");
             mHandlerThread[0].start();
             mServiceHandler[0] = new ServiceHandler(mHandlerThread[0].getLooper(), 0);
         }
     }
+
+    private void updateCatService(int slotId) {
+        if (mUiccController != null && mUiccController.getUiccCard(slotId) != null &&
+                mStkService[slotId] == null) {
+            mStkService[slotId] = ((MSimUiccCard)(mUiccController.getUiccCard(slotId))).
+                    getCatService();
+        }
+        CatLog.d(this, "CatService instance for subscription " + slotId + " is : " +
+                mStkService[slotId] + " For card : " + mUiccController.getUiccCard(slotId));
+    }
+
     @Override
     public void onDestroy() {
         waitForLooper();
-        for (int i = 0; i < mCardNum; i++) {
+        for (int i = 0; i < mPhoneCount; i++) {
             if (mHandlerThread[i] != null) {
                 mHandlerThread[i].quit();
             }
@@ -459,6 +450,9 @@ public class StkAppService extends Service {
             case OP_CARD_STATUS_CHANGED:
                 CatLog.d(this, "Card/Icc Status change received");
                 handleCardStatusChangeAndIccRefresh((Bundle) msg.obj);
+                break;
+            case OP_ALPHA_NOTIFY:
+                handleAlphaNotify((Bundle) msg.obj);
                 break;
             }
         }
@@ -787,8 +781,27 @@ public class StkAppService extends Service {
         if (mCurrentCmd == null) {
             return;
         }
-        if (!(android.telephony.MSimTelephonyManager.getDefault().isMultiSimEnabled()) &&
-                (mStkService[0] == null)) {
+
+        if (android.telephony.MSimTelephonyManager.getDefault().isMultiSimEnabled()) {
+            if (mUiccController == null) {
+                mUiccController = MSimUiccController.getInstance();
+                if (mUiccController == null) {
+                    // This should never happen as UiccController will be created by default.
+                    throw new RuntimeException("mUiccController is null when we need to" +
+                            " send response");
+                }
+            }
+
+            if (mStkService[mCurrentSlotId] == null) {
+                updateCatService(mCurrentSlotId);
+                if (mStkService[mCurrentSlotId] == null) {
+                    // This should never happen (we should be responding only to a message
+                    // that arrived from StkService). It has to exist by this time
+                    throw new RuntimeException("mStkService is null for subscription " +
+                            mCurrentSlotId + " when we need to send response");
+                }
+            }
+        } else if (mStkService[0] == null) {
             mStkService[0] = com.android.internal.telephony.cat.CatService.getInstance();
             if (mStkService[0] == null) {
                 // This should never happen (we should be responding only to a message
@@ -1336,5 +1349,15 @@ public class StkAppService extends Service {
         }
         return false;
     }
+
+    private void handleAlphaNotify(Bundle args) {
+        String alphaString = args.getString(AppInterface.ALPHA_STRING);
+
+        CatLog.d(this, "Alpha string received from card: " + alphaString);
+        Toast toast = Toast.makeText(sInstance, alphaString, Toast.LENGTH_LONG);
+        toast.setGravity(Gravity.TOP, 0, 0);
+        toast.show();
+    }
+
     } // End of Service Handler class
 }
