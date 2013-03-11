@@ -1128,8 +1128,7 @@ public class StkAppService extends Service {
             return;
         }
 
-        Intent intent = new Intent(Intent.ACTION_VIEW);
-
+        Intent intent = null;
         Uri data = null;
         if (settings.url != null) {
             CatLog.d(this, "settings.url = " + settings.url);
@@ -1142,7 +1141,14 @@ public class StkAppService extends Service {
             }
         }
         if (data != null) {
+            intent = new Intent(Intent.ACTION_VIEW);
             intent.setData(data);
+        } else {
+            // if the command did not contain a URL,
+            // launch the browser to the default homepage.
+            CatLog.d(this, "launch browser with default URL ");
+            intent = Intent.makeMainSelectorActivity(Intent.ACTION_MAIN,
+                    Intent.CATEGORY_APP_BROWSER);
         }
         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
         switch (settings.mode) {
@@ -1153,9 +1159,6 @@ public class StkAppService extends Service {
             intent.addFlags(Intent.FLAG_ACTIVITY_MULTIPLE_TASK);
             break;
         case LAUNCH_IF_NOT_ALREADY_LAUNCHED:
-            if (data != null) {
-                intent.setAction(Intent.ACTION_VIEW);
-            }
             intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
             break;
         }
