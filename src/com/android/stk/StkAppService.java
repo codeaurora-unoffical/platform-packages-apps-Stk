@@ -1078,7 +1078,10 @@ public class StkAppService extends Service {
     }
 
     private void launchEventMessage() {
-        TextMessage msg = mCurrentCmd.geTextMessage();
+        displayToast(mCurrentCmd.geTextMessage());
+    }
+
+    private void displayToast(TextMessage msg) {
         if (msg == null || msg.text == null) {
             return;
         }
@@ -1101,7 +1104,7 @@ public class StkAppService extends Service {
          * then alpha string or text data should be displayed
          * Ref: ETSI 102.223,section 6.5.4
          */
-        if (mCurrentCmd.hasIconLoadFailed() || !msg.iconSelfExplanatory) {
+        if (mCurrentCmd.hasIconLoadFailed() || msg.icon == null || !msg.iconSelfExplanatory) {
             tv.setText(msg.text);
         }
 
@@ -1170,16 +1173,7 @@ public class StkAppService extends Service {
     }
 
     private void launchCallMsg() {
-        TextMessage msg = mCurrentCmd.getCallSettings().callMsg;
-        if (msg.text == null || msg.text.length() == 0) {
-            return;
-        }
-        msg.title = lastSelectedItem;
-
-        Toast toast = Toast.makeText(mContext.getApplicationContext(), msg.text,
-                Toast.LENGTH_LONG);
-        toast.setGravity(Gravity.BOTTOM, 0, 0);
-        toast.show();
+        displayToast(mCurrentCmd.getCallSettings().callMsg);
     }
 
     private void launchIdleText() {
