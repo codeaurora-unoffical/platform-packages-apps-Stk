@@ -119,6 +119,7 @@ public class StkAppService extends Service {
     static final int OP_IDLE_SCREEN = 7;
     static final int OP_LOCALE_CHANGED = 8;
     static final int OP_CARD_STATUS_CHANGED = 9;
+    static final int OP_ALPHA_NOTIFY = 10;
 
     //Invalid SetupEvent
     static final int INVALID_SETUP_EVENT = 0xFF;
@@ -189,6 +190,7 @@ public class StkAppService extends Service {
             msg.obj = args.getParcelable(CMD_MSG);
             break;
         case OP_RESPONSE:
+        case OP_ALPHA_NOTIFY:
             msg.obj = args;
             /* falls through */
         case OP_LAUNCH_APP:
@@ -448,6 +450,9 @@ public class StkAppService extends Service {
             case OP_CARD_STATUS_CHANGED:
                 CatLog.d(this, "Card/Icc Status change received");
                 handleCardStatusChangeAndIccRefresh((Bundle) msg.obj);
+                break;
+            case OP_ALPHA_NOTIFY:
+                handleAlphaNotify((Bundle) msg.obj);
                 break;
             }
         }
@@ -1073,7 +1078,10 @@ public class StkAppService extends Service {
     }
 
     private void launchEventMessage() {
-        TextMessage msg = mCurrentCmd.geTextMessage();
+        displayToast(mCurrentCmd.geTextMessage());
+    }
+
+    private void displayToast(TextMessage msg) {
         if (msg == null || msg.text == null) {
             return;
         }
@@ -1096,7 +1104,7 @@ public class StkAppService extends Service {
          * then alpha string or text data should be displayed
          * Ref: ETSI 102.223,section 6.5.4
          */
-        if (mCurrentCmd.hasIconLoadFailed() || !msg.iconSelfExplanatory) {
+        if (mCurrentCmd.hasIconLoadFailed() || msg.icon == null || !msg.iconSelfExplanatory) {
             tv.setText(msg.text);
         }
 
@@ -1123,8 +1131,7 @@ public class StkAppService extends Service {
             return;
         }
 
-        Intent intent = new Intent(Intent.ACTION_VIEW);
-
+        Intent intent = null;
         Uri data = null;
         if (settings.url != null) {
             CatLog.d(this, "settings.url = " + settings.url);
@@ -1137,7 +1144,14 @@ public class StkAppService extends Service {
             }
         }
         if (data != null) {
+            intent = new Intent(Intent.ACTION_VIEW);
             intent.setData(data);
+        } else {
+            // if the command did not contain a URL,
+            // launch the browser to the default homepage.
+            CatLog.d(this, "launch browser with default URL ");
+            intent = Intent.makeMainSelectorActivity(Intent.ACTION_MAIN,
+                    Intent.CATEGORY_APP_BROWSER);
         }
         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
         switch (settings.mode) {
@@ -1148,9 +1162,6 @@ public class StkAppService extends Service {
             intent.addFlags(Intent.FLAG_ACTIVITY_MULTIPLE_TASK);
             break;
         case LAUNCH_IF_NOT_ALREADY_LAUNCHED:
-            if (data != null) {
-                intent.setAction(Intent.ACTION_VIEW);
-            }
             intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
             break;
         }
@@ -1165,16 +1176,7 @@ public class StkAppService extends Service {
     }
 
     private void launchCallMsg() {
-        TextMessage msg = mCurrentCmd.getCallSettings().callMsg;
-        if (msg.text == null || msg.text.length() == 0) {
-            return;
-        }
-        msg.title = lastSelectedItem;
-
-        Toast toast = Toast.makeText(mContext.getApplicationContext(), msg.text,
-                Toast.LENGTH_LONG);
-        toast.setGravity(Gravity.BOTTOM, 0, 0);
-        toast.show();
+        displayToast(mCurrentCmd.getCallSettings().callMsg);
     }
 
     private void launchIdleText() {
@@ -1344,5 +1346,15 @@ public class StkAppService extends Service {
         }
         return false;
     }
+
+    private void handleAlphaNotify(Bundle args) {
+        String alphaString = args.getString(AppInterface.ALPHA_STRING);
+
+        CatLog.d(this, "Alpha string received from card: " + alphaString);
+        Toast toast = Toast.makeText(sInstance, alphaString, Toast.LENGTH_LONG);
+        toast.setGravity(Gravity.TOP, 0, 0);
+        toast.show();
+    }
+
     } // End of Service Handler class
 }
