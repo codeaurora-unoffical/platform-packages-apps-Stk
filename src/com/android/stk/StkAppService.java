@@ -17,6 +17,7 @@
 
 package com.android.stk;
 
+import android.app.ActivityManager;
 import android.app.AlertDialog;
 import android.app.Notification;
 import android.app.NotificationManager;
@@ -608,6 +609,19 @@ public class StkAppService extends Service {
         }
     }
 
+    // returns true if any Stk related activity already has focus on the screen
+    private boolean isTopOfStack() {
+        ActivityManager mAcivityManager = (ActivityManager) mContext
+                .getSystemService(ACTIVITY_SERVICE);
+        String currentPackageName = mAcivityManager.getRunningTasks(1).get(0).topActivity
+                .getPackageName();
+        if (null != currentPackageName) {
+            return currentPackageName.equals(PACKAGE_NAME);
+        }
+
+        return false;
+    }
+
     private void handleCmd(CatCmdMessage cmdMsg) {
         if (cmdMsg == null) {
             return;
@@ -630,13 +644,14 @@ public class StkAppService extends Service {
                 msg.title = "";
             }
 
-            //If the device is not in idlescreen and a low priority display
-            //text message command arrives then send screen busy terminal
-            //response with out displaying the message. Otherwise display the
+            //If the device is not in idlescreen, or if Stk already has focus on the screen
+            // and a low priority display text message command arrives then send screen busy
+            // terminal response with out displaying the message. Otherwise display the
             //message. The existing displayed message shall be updated with the
             //new display text proactive command (Refer to ETSI TS 102 384
             //section 27.22.4.1.4.4.2).
-            if (!(msg.isHighPriority || mMenuIsVisibile || mDisplayTextDlgIsVisibile)) {
+            if (!(msg.isHighPriority || mMenuIsVisibile || mDisplayTextDlgIsVisibile
+                    || isTopOfStack())) {
                 Intent StkIntent = new Intent(AppInterface.CHECK_SCREEN_IDLE_ACTION);
                 StkIntent.putExtra("SCREEN_STATUS_REQUEST",true);
                 sendBroadcast(StkIntent);
