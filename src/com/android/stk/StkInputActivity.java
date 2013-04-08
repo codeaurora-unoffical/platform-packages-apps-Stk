@@ -39,7 +39,7 @@ import android.widget.TextView.BufferType;
 
 import com.android.internal.telephony.cat.FontSize;
 import com.android.internal.telephony.cat.Input;
-
+import com.android.internal.telephony.cat.CatLog;
 /**
  * Display a request for a text input a long with a text edit form.
  */
@@ -187,6 +187,8 @@ public class StkInputActivity extends Activity implements View.OnClickListener,
     }
 
     private void sendResponse(int resId, String input, boolean help) {
+        CatLog.d(this, "sendResponse cancelTimeOut");
+        cancelTimeOut();
         Bundle args = new Bundle();
         args.putInt(StkAppService.OPCODE, StkAppService.OP_RESPONSE);
         args.putInt(StkAppService.RES_ID, resId);
@@ -255,6 +257,7 @@ public class StkInputActivity extends Activity implements View.OnClickListener,
     }
 
     private void cancelTimeOut() {
+        CatLog.d(this, "StkInputActivity cancelTimeOut");
         mTimeoutHandler.removeMessages(MSG_ID_TIMEOUT);
     }
 
@@ -264,6 +267,7 @@ public class StkInputActivity extends Activity implements View.OnClickListener,
         if (duration <= 0) {
             duration = StkApp.UI_TIMEOUT;
         }
+        CatLog.d(this, "StkInputActivity startTimeOut");
         cancelTimeOut();
         mTimeoutHandler.sendMessageDelayed(mTimeoutHandler
                 .obtainMessage(MSG_ID_TIMEOUT), duration);

@@ -629,6 +629,7 @@ public class StkAppService extends Service {
                 // TODO: get the carrier name from the SIM
                 msg.title = "";
             }
+            CatLog.d(this, "display text : msg.isHighPriority is "+msg.isHighPriority+", mMenuIsVisibile is "+mMenuIsVisibile +", mDisplayTextDlgIsVisibile "+mDisplayTextDlgIsVisibile);
 
             //If the device is not in idlescreen and a low priority display
             //text message command arrives then send screen busy terminal
@@ -990,6 +991,7 @@ public class StkAppService extends Service {
     }
 
     private void launchTextDialog() {
+        CatLog.d(this, "launchTextDialog ");
         Intent newIntent = new Intent(sInstance, StkDialogActivity.class);
         newIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK
                 | Intent.FLAG_ACTIVITY_SINGLE_TOP
@@ -1112,6 +1114,7 @@ public class StkAppService extends Service {
     }
 
     private void launchConfirmationDialog(TextMessage msg) {
+        CatLog.d(this, "launchConfirmationDialog ");
         msg.title = lastSelectedItem;
         Intent newIntent = new Intent(sInstance, StkDialogActivity.class);
         newIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK
@@ -1187,6 +1190,7 @@ public class StkAppService extends Service {
 
     private void launchIdleText() {
         TextMessage msg = mIdleModeTextCmd.geTextMessage();
+        CatLog.d(this, "launchIdleText ");
 
         if (msg == null) {
             CatLog.d(this, "mCurrent.getTextMessage is NULL");
