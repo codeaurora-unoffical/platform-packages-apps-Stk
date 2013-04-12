@@ -741,6 +741,7 @@ public class StkAppService extends Service implements Runnable {
         case SEND_USSD:
         case SET_UP_IDLE_MODE_TEXT:
         case SET_UP_MENU:
+        case REFRESH:
         case CLOSE_CHANNEL:
         case RECEIVE_DATA:
         case SEND_DATA:
@@ -979,6 +980,16 @@ public class StkAppService extends Service implements Runnable {
             //SEND_SMS/SS/USSD, when user launches STK app next time and do
             //a menu selection.
             mStkContext[slotId].mCurrentCmd = mStkContext[slotId].mMainCmd;
+            break;
+        case REFRESH:
+            waitForUsersResponse = false;
+            launchEventMessage(slotId);
+            // Idle mode text needs to be cleared for init or reset modes of refresh
+            if (cmdMsg.isRefreshResetOrInit()) {
+                mNotificationManager.cancel(getNotificationId(slotId));
+                mStkContext[slotId].mIdleModeTextCmd = null;
+                CatLog.d(this, "Clean idle mode text due to refresh");
+            }
             break;
         case LAUNCH_BROWSER:
             // The device setup process should not be interrupted by launching browser.
