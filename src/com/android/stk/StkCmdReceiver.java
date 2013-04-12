@@ -113,6 +113,7 @@ public class StkCmdReceiver extends BroadcastReceiver {
         String alphaString = intent.getStringExtra(AppInterface.ALPHA_STRING);
         args.putInt(StkAppService.OPCODE, StkAppService.OP_ALPHA_NOTIFY);
         args.putString(AppInterface.ALPHA_STRING, alphaString);
+        args.putInt(StkAppService.SLOT_ID, intent.getIntExtra("SLOT_ID", 0));
         context.startService(new Intent(context, StkAppService.class)
                 .putExtras(args));
     }
