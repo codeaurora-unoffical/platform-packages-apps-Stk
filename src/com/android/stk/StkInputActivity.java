@@ -115,7 +115,7 @@ public class StkInputActivity extends Activity implements View.OnClickListener,
         super.onCreate(icicle);
 
         // Set the layout for this activity.
-        requestWindowFeature(Window.FEATURE_LEFT_ICON);
+//        requestWindowFeature(Window.FEATURE_LEFT_ICON);
         setContentView(R.layout.stk_input);
 
         // Initialize members
