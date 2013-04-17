@@ -1159,11 +1159,24 @@ public class StkAppService extends Service {
     }
 
     private void launchBrowser(BrowserSettings settings) {
+
+        CatLog.d(this,"start to launch browser");
+
         if (settings == null) {
+            CatLog.d(this,"launchBrowser setting is null");
+            Intent intent = new Intent(Intent.ACTION_VIEW);
+            intent.setAction(Intent.ACTION_MAIN);
+            intent.addCategory(Intent.CATEGORY_BROWSABLE);
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            intent.addFlags(Intent.FLAG_ACTIVITY_MULTIPLE_TASK);
+            startActivity(intent);
             return;
         }
 
         Intent intent = new Intent(Intent.ACTION_VIEW);
+
+        intent.setAction(Intent.ACTION_MAIN);
+        intent.addCategory(Intent.CATEGORY_BROWSABLE);
 
         Uri data = null;
         if (settings.url != null) {
