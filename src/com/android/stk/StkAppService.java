@@ -149,6 +149,9 @@ public class StkAppService extends Service {
     // Notification id used to display Idle Mode text in NotificationManager.
     private static final int STK_NOTIFICATION_ID = 333;
 
+    // ID to  distinguish the main handler to handle OP_LAUNCH_APP
+    private static final int SECONDARY = 0;
+    private static final int MAIN = 1;
     @Override
     public void onCreate() {
         // Get Phone count
@@ -194,7 +197,6 @@ public class StkAppService extends Service {
         case OP_ALPHA_NOTIFY:
             msg.obj = args;
             /* falls through */
-        case OP_LAUNCH_APP:
         case OP_END_SESSION:
             break;
         case OP_LOCALE_CHANGED:
@@ -202,12 +204,15 @@ public class StkAppService extends Service {
         case OP_CARD_STATUS_CHANGED:
             msg.obj = args;
             /* fall through */
+        case OP_LAUNCH_APP:
+            msg.arg2 = MAIN;
         case OP_BOOT_COMPLETED:
             //Broadcast this event to other slots.
             for (int i = 0; i < mPhoneCount; i++) {
                 if ((i != slotId) && (mServiceHandler[i] != null)) {
                     Message tmpmsg = mServiceHandler[i].obtainMessage();
                     tmpmsg.arg1 = msg.arg1;
+                    tmpmsg.arg2 = SECONDARY;
                     tmpmsg.obj = msg.obj;
                     mServiceHandler[i].sendMessage(tmpmsg);
                 }
@@ -379,12 +384,29 @@ public class StkAppService extends Service {
 
             switch (opcode) {
             case OP_LAUNCH_APP:
-                CatLog.d(this, "OP_LAUNCH_APP");
-                if (mMainCmd == null) {
-                    // nothing todo when no SET UP MENU command didn't arrive.
-                    return;
+                int isMain = msg.arg2;
+                CatLog.d(this, "OP_LAUNCH_APP mcurrent slot is "+ mCurrentSlotId + "isMain: "
+                    + isMain);
+                    if (mMainCmd == null) {
+                        // nothing todo when no SET UP MENU command didn't arrive.
+                        return;
+                    }
+                if (mCurrentCmd != null) {
+                    // mCmdInProgress would be set true after select any item
+                    // from menu list, so that we couldn't process end session
+                    // event. For reenter stk, the first step is send a command
+                    // to ril for end pre-exist session, and it would receive
+                    // OP_END_SESSION from catservice. So here need reset it to
+                    // false.
+                    mCmdInProgress = false;
+                    //End the previous command
+                    //which may not end correctly when user press the home key
+                    //we need to end both slot1 and slot2 's current command.
+                    userEndSession();
                 }
-                launchMenuActivity(null);
+                if ( isMain == MAIN) {
+                    launchMenuActivity(null);
+                }
                 break;
             case OP_CMD:
                 CatCmdMessage cmdMsg = (CatCmdMessage) msg.obj;
@@ -770,6 +792,24 @@ public class StkAppService extends Service {
             }
         }
     }
+
+    private void userEndSession() {
+        CatResponseMessage resMsg = new CatResponseMessage(mCurrentCmd);
+        CatLog.d(this, "userEndSession command is  " + mCurrentCmd.getCmdType().name());
+        switch (mCurrentCmd.getCmdType()) {
+        case SET_UP_MENU:
+            break;
+        default:
+            resMsg.setResultCode(ResultCode.UICC_SESSION_TERM_BY_USER);
+            if (mStkService[mCurrentSlotId] != null) {
+                mStkService[mCurrentSlotId].onCmdResponse(resMsg);
+            } else {
+                CatLog.d(this, "CmdResponse on wrong slotid");
+            }
+            break;
+        }
+    }
+
 
     /*
      * Package api used by StkMenuActivity to indicate if its on the foreground.
