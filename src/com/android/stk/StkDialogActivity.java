@@ -193,6 +193,8 @@ public class StkDialogActivity extends Activity implements View.OnClickListener 
     }
 
     private void sendResponse(int resId, boolean confirmed) {
+        CatLog.d(this, "sendResponse cancelTimeOut");
+        cancelTimeOut();
         Bundle args = new Bundle();
         args.putInt(StkAppService.OPCODE, StkAppService.OP_RESPONSE);
         args.putInt(StkAppService.RES_ID, resId);

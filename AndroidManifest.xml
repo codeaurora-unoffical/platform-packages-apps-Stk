@@ -26,12 +26,12 @@
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
 
 	<application android:icon="@drawable/ic_launcher_sim_toolkit"
-		android:label="@string/app_name"
+		android:label="@string/wgapk_name"
 		android:clearTaskOnLaunch="true"
 		android:process="com.android.phone">
 
 		<activity android:name="StkLauncherActivity"
-			android:label="@string/app_name"
+			android:label="@string/stk_app_name"
 			android:enabled="false"	>
 			<intent-filter>
 				<action android:name="android.intent.action.MAIN" />
@@ -40,14 +40,31 @@
 		</activity>
 
                 <activity android:name="StkLauncherActivity2"
-                        android:label="@string/app_name2"
+                        android:label="@string/stk_app_name2"
                         android:enabled="false" >
                         <intent-filter>
                                 <action android:name="android.intent.action.MAIN" />
                                 <category android:name="android.intent.category.LAUNCHER" />
                         </intent-filter>
                 </activity>
-
+                
+		<activity android:name="UsatLauncherActivity"
+			android:label="@string/usat_app_name"
+			android:enabled="false"	>
+			<intent-filter>
+				<action android:name="android.intent.action.MAIN" />
+				<category android:name="android.intent.category.LAUNCHER" />
+			</intent-filter>
+		</activity>
+		
+		<activity android:name="UsatLauncherActivity2"
+			android:label="@string/usat_app_name2"
+			android:enabled="false"	>
+			<intent-filter>
+				<action android:name="android.intent.action.MAIN" />
+				<category android:name="android.intent.category.LAUNCHER" />
+			</intent-filter>
+		</activity>
 		<activity android:name="StkMenuActivity"
              android:launchMode="singleTop">
 	         <intent-filter>

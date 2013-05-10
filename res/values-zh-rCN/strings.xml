@@ -17,6 +17,7 @@
 <resources xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
     <string name="app_name" msgid="8396461461738434341">"SIM 卡工具包"</string>
+    <string name="app_name2">SIM 卡工具包2</string>
     <string name="menu_end_session" msgid="7368541737750982217">"结束会话"</string>
     <string name="help" msgid="9209980881219397319">"帮助"</string>
     <string name="menu_back" msgid="301227740977453364">"返回"</string>
@@ -39,4 +40,14 @@
     <string name="default_close_channel_msg" msgid="765364262263839824">"已关闭通道"</string>
     <string name="stk_dialog_accept" msgid="8498901537508923727">"是"</string>
     <string name="stk_dialog_reject" msgid="921848059485746796">"否"</string>
+    <string name="usat_app_name">"USIM卡应用（卡1）"</string>
+    <string name="usat_app_name2">"USIM卡应用（卡2）"</string>
+    <string name="stk_app_name">"SIM卡应用（卡1）"</string>
+    <string name="stk_app_name2">"SIM卡应用（卡2）"</string>
+    <string name="utk_app_name">"UIM卡应用"</string>
+    <string name="egstk_app_name">"SIM卡应用"</string>
+    <string name="sim_is_not_ready">"请插入SIM卡！"</string>
+    <string name="uim_is_not_ready">"请插入UIM卡！"</string>
+    <string name="egapk_name">"UIM卡/SIM卡应用"</string>
+    <string name="wgapk_name">"USIM卡/SIM卡应用"</string>
 </resources>

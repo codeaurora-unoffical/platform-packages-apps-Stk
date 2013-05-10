@@ -256,6 +256,7 @@ public class StkMenuActivity extends ListActivity {
     }
 
     private void cancelTimeOut() {
+        CatLog.d(this, "cancelTimeOut");
         mTimeoutHandler.removeMessages(MSG_ID_TIMEOUT);
     }
 
@@ -263,6 +264,7 @@ public class StkMenuActivity extends ListActivity {
         if (mState == STATE_SECONDARY) {
             // Reset timeout.
             cancelTimeOut();
+            CatLog.d(this, "startTimeOut");
             mTimeoutHandler.sendMessageDelayed(mTimeoutHandler
                     .obtainMessage(MSG_ID_TIMEOUT), StkApp.UI_TIMEOUT);
         }
@@ -300,7 +302,7 @@ public class StkMenuActivity extends ListActivity {
     }
 
     private void initFromIntent(Intent intent) {
-
+        CatLog.d(this,"initFromIntent appService "+appService);
         if (intent != null) {
             mState = intent.getIntExtra("STATE", STATE_MAIN);
             mSlotId = intent.getIntExtra(StkAppService.SLOT_ID, 0);
@@ -308,9 +310,11 @@ public class StkMenuActivity extends ListActivity {
             if (mState == STATE_SECONDARY) {
                 mStkMenu = intent.getParcelableExtra("MENU");
             } else {
+                CatLog.d(this,"initFromIntent main appService "+appService);
                 mStkMenu = appService.getMenu(mSlotId);
             }
         } else {
+            CatLog.d(this,"initFromIntent mStkMenu is null, finish");
             finish();
         }
     }
@@ -334,10 +338,12 @@ public class StkMenuActivity extends ListActivity {
     }
 
     private void sendResponse(int resId) {
+        CatLog.d(this, "menu sendResponse1");
         sendResponse(resId, 0, false);
     }
 
     private void sendResponse(int resId, int itemId, boolean help) {
+        CatLog.d(this, "menu sendResponse2");
         Bundle args = new Bundle();
         args.putInt(StkAppService.OPCODE, StkAppService.OP_RESPONSE);
         args.putInt(StkAppService.RES_ID, resId);

@@ -148,6 +148,19 @@ public class StkAppService extends Service {
     // Notification id used to display Idle Mode text in NotificationManager.
     private static final int STK_NOTIFICATION_ID = 333;
 
+  
+    private static int[] mCardType;
+    static final String CARD_TYPE = "card_type";
+    static final String INPUT_TITLE = "input_title";
+    static final int CARD_APP_TYPE_UNKNOWN=0;
+    static final int CARD_APP_TYPE_SIM=1;
+    static final int CARD_APP_TYPE_USIM=2;
+    static final int CARD_APP_TYPE_RUIM=3;
+    static final int CARD_APP_TYPE_CSIM=4;
+    static final int CARD_APP_TYPE_ISIM=5;    
+
+
+
     @Override
     public void onCreate() {
         // Get Phone count
@@ -155,6 +168,9 @@ public class StkAppService extends Service {
         mStkService = new AppInterface[mPhoneCount];
         mHandlerThread = new HandlerThread[mPhoneCount];
         mServiceHandler = new ServiceHandler[mPhoneCount];
+
+        CatLog.d(this, " Number of Cards present:"+mPhoneCount);
+        mCardType=new int[mPhoneCount];
 
         updateCatServiceAndInitHandlerThread();
         mContext = getBaseContext();
@@ -1357,4 +1373,12 @@ public class StkAppService extends Service {
     }
 
     } // End of Service Handler class
+
+
+  public static int getCardType(int slot)
+  {
+      return mCardType[slot];
+  }
+
+
 }
