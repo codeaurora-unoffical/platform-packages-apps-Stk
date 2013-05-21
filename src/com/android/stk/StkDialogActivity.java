@@ -31,7 +31,7 @@ import android.view.View;
 import android.view.Window;
 import android.widget.Button;
 import android.widget.TextView;
-
+import com.android.internal.telephony.cat.CatLog;
 /**
  * AlretDialog used for DISPLAY TEXT commands.
  *
@@ -68,7 +68,7 @@ public class StkDialogActivity extends Activity implements View.OnClickListener 
     @Override
     protected void onCreate(Bundle icicle) {
         super.onCreate(icicle);
-
+        CatLog.d(this, "StkDialogActivity onCreate");
         requestWindowFeature(Window.FEATURE_LEFT_ICON);
 
         setContentView(R.layout.stk_msg_dialog);
@@ -94,6 +94,12 @@ public class StkDialogActivity extends Activity implements View.OnClickListener 
              }
         }
         finish();
+    }
+
+    @Override
+    public void onDestroy() {
+        CatLog.d(this, "onDestroy stkdialog");
+        super.onDestroy();
     }
 
     @Override
@@ -218,12 +224,14 @@ public class StkDialogActivity extends Activity implements View.OnClickListener 
     }
 
     private void cancelTimeOut() {
+        CatLog.d(this, "StkDialogActivity cancelTimeOut");
         mTimeoutHandler.removeMessages(MSG_ID_TIMEOUT);
     }
 
     private void startTimeOut() {
         int dialogDuration = 0;
         // Reset timeout.
+        CatLog.d(this, "StkDialogActivity startTimeOut");
         cancelTimeOut();
         dialogDuration = StkApp.calculateDurationInMilis(mTextMsg.duration);
         if (dialogDuration == 0) {
