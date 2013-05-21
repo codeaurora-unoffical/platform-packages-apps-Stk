@@ -525,7 +525,9 @@ public class StkAppService extends Service {
         CatResponseMessage resMsg = new CatResponseMessage(mCurrentCmd);
         CatLog.d(this, "SCREEN_BUSY");
         resMsg.setResultCode(ResultCode.TERMINAL_CRNTLY_UNABLE_TO_PROCESS);
-        mStkService[mCurrentSlotId].onCmdResponse(resMsg);
+        if (mStkService[mCurrentSlotId] != null){           
+            mStkService[mCurrentSlotId].onCmdResponse(resMsg);
+        }
         // reset response needed state var to its original value.
         responseNeeded = true;
         if (mCmdsQ.size() != 0) {
