@@ -16,7 +16,7 @@
 
 <resources>
     <!-- Default Application label used on home screen with an icon -->
-    <string name="app_name">SIM Toolkit</string>
+    <string name="app_name">STK Applications</string>
     <!-- Application label used on home screen with an icon2 -->
     <string name="app_name2">SIM Toolkit2</string>
     <!-- Menu button option for ending current SIM session -->
