@@ -96,7 +96,8 @@ public class StkMenuActivity extends ListActivity {
     @Override
     protected void onNewIntent(Intent intent) {
         super.onNewIntent(intent);
-
+        //cancelTimeOut should be called to remove previous timeouts.
+        cancelTimeOut();
         CatLog.d(this, "onNewIntent");
         initFromIntent(intent);
         mAcceptUsersInput = true;
@@ -184,6 +185,7 @@ public class StkMenuActivity extends ListActivity {
 
     @Override
     public void onDestroy() {
+        cancelTimeOut();
         super.onDestroy();
 
         CatLog.d(this, "onDestroy");
@@ -263,8 +265,8 @@ public class StkMenuActivity extends ListActivity {
     private void startTimeOut() {
         if (mState == STATE_SECONDARY) {
             // Reset timeout.
-            cancelTimeOut();
             CatLog.d(this, "startTimeOut");
+            cancelTimeOut();
             mTimeoutHandler.sendMessageDelayed(mTimeoutHandler
                     .obtainMessage(MSG_ID_TIMEOUT), StkApp.UI_TIMEOUT);
         }
@@ -345,6 +347,7 @@ public class StkMenuActivity extends ListActivity {
     private void sendResponse(int resId, int itemId, boolean help) {
         CatLog.d(this, "menu sendResponse2");
         Bundle args = new Bundle();
+        cancelTimeOut();
         args.putInt(StkAppService.OPCODE, StkAppService.OP_RESPONSE);
         args.putInt(StkAppService.RES_ID, resId);
         args.putInt(StkAppService.MENU_SELECTION, itemId);
