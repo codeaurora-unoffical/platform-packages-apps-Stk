@@ -40,6 +40,7 @@
 		</activity>
 
                 <activity android:name="StkLauncherActivity2"
+                        android:icon="@drawable/ic_launcher_sim_toolkit2"
                         android:label="@string/stk_app_name2"
                         android:enabled="false" >
                         <intent-filter>
@@ -58,6 +59,7 @@
 		</activity>
 		
 		<activity android:name="UsatLauncherActivity2"
+		    android:icon="@drawable/ic_launcher_sim_toolkit2"
 			android:label="@string/usat_app_name2"
 			android:enabled="false"	>
 			<intent-filter>

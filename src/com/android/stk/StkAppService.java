@@ -201,6 +201,9 @@ public class StkAppService extends Service {
         msg.arg1 = args.getInt(OPCODE);
         CatLog.d(this,  msg.arg1+ "called on slot:"+ slotId);
 
+        mCardType[slotId]=args.getInt(CARD_TYPE);
+        CatLog.d(this, "slotid is "+ slotId+ ", cardtype is "+mCardType[slotId]);
+
         switch(msg.arg1) {
         case OP_CMD:
             msg.obj = args.getParcelable(CMD_MSG);

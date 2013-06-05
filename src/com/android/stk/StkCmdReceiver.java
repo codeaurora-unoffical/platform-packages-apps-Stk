@@ -27,6 +27,7 @@ import android.os.Bundle;
 
 import static com.android.internal.telephony.cat.CatCmdMessage.SetupEventListConstants.*;
 import static com.android.internal.telephony.cat.CatCmdMessage.BrowserTerminationCauses.*;
+import com.android.internal.telephony.cat.CatLog;
 
 /**
  * Receiver class to get STK intents, broadcasted by telephony layer.
@@ -60,6 +61,9 @@ public class StkCmdReceiver extends BroadcastReceiver {
                 .getParcelableExtra("STK CMD"));
         args.putInt(StkAppService.SLOT_ID, intent
                 .getIntExtra("SLOT_ID",0));
+        args.putInt(StkAppService.CARD_TYPE, intent
+                .getIntExtra("CARD_TYPE",0));
+        CatLog.d(this, "enter handleCommandMessage");
         context.startService(new Intent(context, StkAppService.class)
                 .putExtras(args));
     }
@@ -69,6 +73,9 @@ public class StkCmdReceiver extends BroadcastReceiver {
         args.putInt(StkAppService.OPCODE, StkAppService.OP_END_SESSION);
         args.putInt(StkAppService.SLOT_ID, intent
                 .getIntExtra("SLOT_ID",0));
+        args.putInt(StkAppService.CARD_TYPE, intent
+                .getIntExtra("CARD_TYPE",0));
+        CatLog.d(this, "enter handleSessionEnd");
         context.startService(new Intent(context, StkAppService.class)
                 .putExtras(args));
     }
