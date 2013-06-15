@@ -76,7 +76,8 @@
 	         </intent-filter>
          </activity>
 
-		<activity android:name="StkInputActivity">
+		<activity android:name="StkInputActivity"
+		    android:screenOrientation="nosensor">
 			<intent-filter>
 		        <action android:name="android.intent.action.VIEW" />
 		        <action android:name="android.intent.action.EDIT" />
