@@ -192,6 +192,7 @@ public class StkAppService extends Service {
             break;
         case OP_RESPONSE:
         case OP_ALPHA_NOTIFY:
+        case OP_CARD_STATUS_CHANGED:
             msg.obj = args;
             /* falls through */
         case OP_LAUNCH_APP:
@@ -199,7 +200,6 @@ public class StkAppService extends Service {
             break;
         case OP_LOCALE_CHANGED:
         case OP_IDLE_SCREEN:
-        case OP_CARD_STATUS_CHANGED:
             msg.obj = args;
             /* fall through */
         case OP_BOOT_COMPLETED:
@@ -464,10 +464,13 @@ public class StkAppService extends Service {
             CatLog.d(this, "CardStatus: " + cardStatus);
             if (cardStatus == false) {
                 CatLog.d(this, "CARD is ABSENT");
-                // Uninstall STKAPP, Clear Idle text, Stop StkAppService
+                // Uninstall STKAPP, Clear Idle text, Menu related variables.
                 StkAppInstaller.unInstall(mContext, mCurrentSlotId);
                 mNotificationManager.cancel(STK_NOTIFICATION_ID);
-                stopSelf();
+                mCurrentMenu = null;
+                mMainCmd = null;
+                mSetupEventListSettings = null;
+                mStkService[mCurrentSlotId] = null;
             } else {
                 IccRefreshResponse state = new IccRefreshResponse();
                 state.refreshResult = state.refreshResultFromRIL(
