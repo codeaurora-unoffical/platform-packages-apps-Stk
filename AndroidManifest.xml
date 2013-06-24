@@ -18,53 +18,59 @@
 
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
         xmlns:androidprv="http://schemas.android.com/apk/prv/res/android"
-		package="com.android.stk"
-		android:sharedUserId="android.uid.phone">
+        package="com.android.stk"
+        android:sharedUserId="android.uid.phone">
 
     <original-package android:name="com.android.stk" />
 
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.GET_TASKS"/>
 
-	<application android:icon="@drawable/ic_launcher_sim_toolkit"
-		android:label="@string/app_name"
-		android:clearTaskOnLaunch="true"
-		android:process="com.android.phone">
+    <application android:icon="@drawable/ic_launcher_sim_toolkit"
+        android:label="@string/app_name"
+        android:clearTaskOnLaunch="true"
+        android:process="com.android.phone">
 
-		<activity android:name="StkLauncherActivity"
-			android:label="@string/app_name"
-			android:enabled="false"	>
-			<intent-filter>
-				<action android:name="android.intent.action.MAIN" />
-				<category android:name="android.intent.category.LAUNCHER" />
-			</intent-filter>
-		</activity>
+        <activity android:name="StkLauncherActivity"
+            android:label="@string/app_name"
+            android:excludeFromRecents="true"
+            android:theme="@android:style/Theme.NoDisplay"
+            android:taskAffinity="android.task.StkLauncherActivity"
+            android:enabled="false">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
 
-                <activity android:name="StkLauncherActivity2"
-                        android:label="@string/app_name2"
-                        android:enabled="false" >
-                        <intent-filter>
-                                <action android:name="android.intent.action.MAIN" />
-                                <category android:name="android.intent.category.LAUNCHER" />
-                        </intent-filter>
-                </activity>
+        <activity android:name="StkLauncherActivity2"
+            android:label="@string/app_name2"
+            android:excludeFromRecents="true"
+            android:theme="@android:style/Theme.NoDisplay"
+            android:taskAffinity="android.task.StkLauncherActivity2"
+            android:enabled="false">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
 
-		<activity android:name="StkMenuActivity"
+        <activity android:name="StkMenuActivity"
              android:launchMode="singleTop">
-	         <intent-filter>
-	             <action android:name="android.intent.action.VIEW" />
-	             <action android:name="android.intent.action.PICK" />
-	             <category android:name="android.intent.category.DEFAULT" />
-	         </intent-filter>
+             <intent-filter>
+                 <action android:name="android.intent.action.VIEW" />
+                 <action android:name="android.intent.action.PICK" />
+                 <category android:name="android.intent.category.DEFAULT" />
+             </intent-filter>
          </activity>
 
-		<activity android:name="StkInputActivity">
-			<intent-filter>
-		        <action android:name="android.intent.action.VIEW" />
-		        <action android:name="android.intent.action.EDIT" />
-		        <category android:name="android.intent.category.DEFAULT" />
-		    </intent-filter>
-		</activity>
+        <activity android:name="StkInputActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <action android:name="android.intent.action.EDIT" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </activity>
 
         <activity android:name="StkDialogActivity"
             android:theme="@android:style/Theme.Dialog">
@@ -74,16 +80,16 @@
             android:theme="@android:style/Theme.Dialog">
         </activity>
 
-		<!-- SIM Toolkit settings activity -->
-		<activity android:name="StkSettings"
-			android:label="@string/app_name">
-			<intent-filter>
-				<action android:name="android.intent.action.VIEW" />
-				<action android:name="android.intent.action.MAIN" />
-				<category
-					android:name="android.intent.category.DEVELOPMENT_PREFERENCE" />
-			</intent-filter>
-		</activity>
+        <!-- SIM Toolkit settings activity -->
+        <activity android:name="StkSettings"
+            android:label="@string/app_name">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <action android:name="android.intent.action.MAIN" />
+                <category
+                    android:name="android.intent.category.DEVELOPMENT_PREFERENCE" />
+            </intent-filter>
+        </activity>
 
         <receiver android:name="com.android.stk.StkCmdReceiver">
             <intent-filter>
@@ -105,5 +111,5 @@
 
         <service android:name="StkAppService" />
 
-	</application>
+    </application>
 </manifest>
