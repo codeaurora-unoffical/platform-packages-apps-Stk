@@ -42,8 +42,10 @@
     <string name="stk_dialog_reject" msgid="921848059485746796">"否"</string>
     <string name="usat_app_name">"USIM卡应用1"</string>
     <string name="usat_app_name2">"USIM卡应用2"</string>
+    <string name="usat_app_name1">"USIM卡应用"</string>
     <string name="stk_app_name">"SIM卡应用1"</string>
     <string name="stk_app_name2">"SIM卡应用2"</string>
+      <string name="stk_app_name1">"SIM卡应用"</string>
     <string name="utk_app_name">"UIM卡应用"</string>
     <string name="egstk_app_name">"SIM卡应用"</string>
     <string name="sim_is_not_ready">"请插入SIM卡！"</string>

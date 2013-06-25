@@ -35,6 +35,8 @@ import android.widget.TextView;
 import com.android.internal.telephony.cat.Item;
 import com.android.internal.telephony.cat.Menu;
 import com.android.internal.telephony.cat.CatLog;
+import com.qrd.plugin.feature_query.FeatureQuery;
+
 
 /**
  * ListActivity used for displaying STK menus. These can be SET UP MENU and
@@ -61,6 +63,12 @@ public class StkMenuActivity extends ListActivity {
 
     // message id for time out
     private static final int MSG_ID_TIMEOUT = 1;
+    static final int CARD_APP_TYPE_UNKNOWN=0;
+    static final int CARD_APP_TYPE_SIM=1;
+    static final int CARD_APP_TYPE_USIM=2;
+    static final int CARD_APP_TYPE_RUIM=3;
+    static final int CARD_APP_TYPE_CSIM=4;
+    static final int CARD_APP_TYPE_ISIM=5;    
 
     Handler mTimeoutHandler = new Handler() {
         @Override
@@ -286,8 +294,24 @@ public class StkMenuActivity extends ListActivity {
             if (!mStkMenu.titleIconSelfExplanatory) {
                 mTitleTextView.setVisibility(View.VISIBLE);
                 if (mStkMenu.title == null) {
-                    mTitleTextView.setText(R.string.app_name);
-                } else {
+
+                    if(FeatureQuery.FEATURE_USE_CU_USAT_STK_STYLE){
+                   if(StkAppService.getCardType(mSlotId)==CARD_APP_TYPE_USIM)
+                     {
+                     mTitleTextView.setText(R.string.usat_app_name1);
+                     CatLog.d(this, "CARD_APP_TYPE_USIM");
+                     }
+                   else
+                     {
+                     mTitleTextView.setText(R.string.stk_app_name1);
+                     CatLog.d(this, "CARD_APP_TYPE_SIM");
+                     }
+                   }
+              else {
+                   CatLog.d(this, "R.string.app_name");
+                   mTitleTextView.setText(R.string.app_name);
+                   }
+           } else {
                     mTitleTextView.setText(mStkMenu.title);
                 }
             } else {

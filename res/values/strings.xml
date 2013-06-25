@@ -62,9 +62,11 @@
     <string name="stk_dialog_accept">YES</string>
     <string name="stk_dialog_reject">NO</string>
     <string name="usat_app_name">"USIM卡应用1"</string>
+    <string name="usat_app_name1">"USIM卡应用"</string>
     <string name="usat_app_name2">"USIM卡应用2"</string>
     <string name="stk_app_name">"SIM卡应用1"</string>
     <string name="stk_app_name2">"SIM卡应用2"</string>
+    <string name="stk_app_name1">"SIM卡应用"</string>
     <string name="sim_is_not_ready">"Please insert SIM card!"</string>
     <string name="uim_is_not_ready">"Please insert UIM card!"</string>
 
