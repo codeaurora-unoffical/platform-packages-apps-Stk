@@ -217,7 +217,7 @@ public class StkAppService extends Service {
             break;
         case OP_LOCALE_CHANGED:
         case OP_IDLE_SCREEN:
-        case OP_CARD_STATUS_CHANGED:
+        //case OP_CARD_STATUS_CHANGED:
             msg.obj = args;
             /* fall through */
         case OP_BOOT_COMPLETED:
@@ -230,6 +230,9 @@ public class StkAppService extends Service {
                     mServiceHandler[i].sendMessage(tmpmsg);
                 }
             }
+            break;
+        case OP_CARD_STATUS_CHANGED:
+            msg.obj = args;
             break;
         default:
             return;
@@ -485,7 +488,13 @@ public class StkAppService extends Service {
                 // Uninstall STKAPP, Clear Idle text, Stop StkAppService
                 StkAppInstaller.unInstall(mContext, mCurrentSlotId);
                 mNotificationManager.cancel(STK_NOTIFICATION_ID);
-                stopSelf();
+
+                mPhoneCount = android.telephony.MSimTelephonyManager.getDefault().getPhoneCount();  
+                CatLog.d(this, "mPhoneCount: " + mPhoneCount); 
+                if (mPhoneCount <= 1) {
+                    stopSelf();
+                   }
+
             } else {
                 IccRefreshResponse state = new IccRefreshResponse();
                 state.refreshResult = state.refreshResultFromRIL(

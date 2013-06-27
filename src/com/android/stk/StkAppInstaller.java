@@ -163,11 +163,14 @@ abstract class StkAppInstaller {
         ComponentName cName3;
         CatLog.d("StkAppInstaller", "enter removeStkapp");
         if(slot_id==0)
-        {
+        { 
+            CatLog.d("removeWGStkapp", "slot_id= "+slot_id);
+
             cName = new ComponentName("com.android.stk", "com.android.stk.UsatLauncherActivity");
             try {
                 pm.setComponentEnabledSetting(cName,  PackageManager.COMPONENT_ENABLED_STATE_DISABLED,
                     PackageManager.DONT_KILL_APP);
+           CatLog.d("removeWGStkapp", "DONT_KILL_APP= "+cName);     
             } catch (Exception e) {
                 CatLog.d("StkAppInstaller", "Could not change STK app state");
             }
@@ -175,12 +178,16 @@ abstract class StkAppInstaller {
             try {
                 pm.setComponentEnabledSetting(cName2,  PackageManager.COMPONENT_ENABLED_STATE_DISABLED,
                     PackageManager.DONT_KILL_APP);
+                  CatLog.d("removeWGStkapp", "DONT_KILL_APP= "+cName2);    
             } catch (Exception e) {
                 CatLog.d("StkAppInstaller", "Could not change STK app state");
             }
         }       
         if(slot_id==1)  
         {
+
+         CatLog.d("removeWGStkapp", "slot_id= "+slot_id);
+         
             cName1 = new ComponentName("com.android.stk", "com.android.stk.UsatLauncherActivity2");
             try {
                 pm.setComponentEnabledSetting(cName1,  PackageManager.COMPONENT_ENABLED_STATE_DISABLED,
