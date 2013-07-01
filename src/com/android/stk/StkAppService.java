@@ -200,8 +200,11 @@ public class StkAppService extends Service {
         Message msg = mServiceHandler[slotId].obtainMessage();
         msg.arg1 = args.getInt(OPCODE);
         CatLog.d(this,  msg.arg1+ "called on slot:"+ slotId);
-
-        mCardType[slotId]=args.getInt(CARD_TYPE);
+        
+        if(msg.arg1!=OP_CARD_STATE_CHANGED){
+            mCardType[slotId]=args.getInt(CARD_TYPE);
+        }
+        
         CatLog.d(this, "slotid is "+ slotId+ ", cardtype is "+mCardType[slotId]);
 
         switch(msg.arg1) {
