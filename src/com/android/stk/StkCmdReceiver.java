@@ -35,8 +35,8 @@ import com.android.internal.telephony.cat.CatLog;
  *
  */
 public class StkCmdReceiver extends BroadcastReceiver {
-    private static int SLOT0=0;
-    private static int SLOT1=1;
+    private static final int SLOT0=0;
+    private static final int SLOT1=1;
 
     @Override
     public void onReceive(Context context, Intent intent) {
@@ -142,8 +142,10 @@ public class StkCmdReceiver extends BroadcastReceiver {
         args.putInt(StkAppService.OPCODE, StkAppService.OP_CARD_STATE_CHANGED);
 
         String stateExtra = intent.getStringExtra(IccCardConstants.INTENT_KEY_ICC_STATE);
-        
-        if (IccCardConstants.INTENT_VALUE_ICC_READY.equals(stateExtra)){
+        CatLog.d(this, "enter handleIccStateChanged, stateExtra is "+stateExtra);
+        if ((IccCardConstants.INTENT_VALUE_ICC_READY.equals(stateExtra))
+            ||(IccCardConstants.INTENT_VALUE_ICC_LOADED.equals(stateExtra))
+            ||(IccCardConstants.INTENT_VALUE_ICC_IMSI.equals(stateExtra))){
             args.putBoolean(AppInterface.CARD_STATE,true);
         }            
         else if(IccCardConstants.INTENT_VALUE_ICC_DEACTIVATED.equals(stateExtra)){

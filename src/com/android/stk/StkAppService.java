@@ -157,8 +157,9 @@ public class StkAppService extends Service {
     static final int CARD_APP_TYPE_USIM=2;
     static final int CARD_APP_TYPE_RUIM=3;
     static final int CARD_APP_TYPE_CSIM=4;
-    static final int CARD_APP_TYPE_ISIM=5;    
-
+    static final int CARD_APP_TYPE_ISIM=5; 
+    
+    private static boolean[] mApkInstall;
 
 
     @Override
@@ -171,7 +172,9 @@ public class StkAppService extends Service {
 
         CatLog.d(this, " Number of Cards present:"+mPhoneCount);
         mCardType=new int[mPhoneCount];
-
+        
+        mApkInstall=new boolean[mPhoneCount];
+        
         updateCatServiceAndInitHandlerThread();
         mContext = getBaseContext();
         mNotificationManager = (NotificationManager) mContext
@@ -463,6 +466,7 @@ public class StkAppService extends Service {
                 CatLog.d(this, "OP_BOOT_COMPLETED");
                 if (mMainCmd == null) {
                     StkAppInstaller.unInstall(mContext, mCurrentSlotId);
+                    mApkInstall[mCurrentSlotId]=false;
                 }
                 break;
             case OP_DELAYED_MSG:
@@ -497,6 +501,7 @@ public class StkAppService extends Service {
                 CatLog.d(this, "CARD is ABSENT");
                 // Uninstall STKAPP, Clear Idle text, Stop StkAppService
                 StkAppInstaller.unInstall(mContext, mCurrentSlotId);
+                mApkInstall[mCurrentSlotId]=false;
                 mNotificationManager.cancel(STK_NOTIFICATION_ID);
 
                 mPhoneCount = android.telephony.MSimTelephonyManager.getDefault().getPhoneCount();  
@@ -521,6 +526,7 @@ public class StkAppService extends Service {
                 if (state.refreshResult == IccRefreshResponse.REFRESH_RESULT_RESET) {
                     // Uninstall STkmenu
                     StkAppInstaller.unInstall(mContext, mCurrentSlotId);
+                    mApkInstall[mCurrentSlotId]=false;
                     mCurrentMenu = null;
                     mMainCmd = null;
                 }
@@ -542,11 +548,15 @@ public class StkAppService extends Service {
             if (cardState == false) {
                 CatLog.d(this, "CARD is detected");
                 // Uninstall STKAPP, Clear Idle text, Stop StkAppService
-                StkAppInstaller.unInstall(mContext, slotid);
+                if(mApkInstall[slotid]==true) {
+                    StkAppInstaller.unInstall(mContext, slotid);
+                    mApkInstall[mCurrentSlotId]=false;
+                }
 
             } else {         
-                if(mMainCmd!=null) {
+                if((mMainCmd!=null)&&(mApkInstall[slotid]==false)) {
                     StkAppInstaller.install(mContext, slotid);
+                    mApkInstall[slotid]=true;
                 }
             }
         }
@@ -719,9 +729,11 @@ public class StkAppService extends Service {
                 CatLog.d(this, "Uninstall App");
                 mCurrentMenu = null;
                 StkAppInstaller.unInstall(mContext, mCurrentSlotId);
+                mApkInstall[mCurrentSlotId]=false;
             } else {
                 CatLog.d(this, "Install App");
                 StkAppInstaller.install(mContext, mCurrentSlotId);
+                mApkInstall[mCurrentSlotId]=true;
             }
             mMainMenu = mCurrentMenu;
             if (mMenuIsVisibile) {

@@ -26,12 +26,16 @@ import android.os.Bundle;
  *
  */
 public class StkLauncherActivity extends Activity {
+    private static int mSlotId = 0;
+    static final int CARD_APP_TYPE_SIM=1;
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
         Bundle args = new Bundle();
         args.putInt(StkAppService.OPCODE, StkAppService.OP_LAUNCH_APP);
+        args.putInt(StkAppService.SLOT_ID,mSlotId);
+        args.putInt(StkAppService.CARD_TYPE,CARD_APP_TYPE_SIM);
         startService(new Intent(this, StkAppService.class).putExtras(args));
 
         finish();
