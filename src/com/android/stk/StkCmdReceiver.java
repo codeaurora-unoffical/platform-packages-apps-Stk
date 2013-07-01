@@ -19,6 +19,7 @@ package com.android.stk;
 
 import com.android.internal.telephony.cat.AppInterface;
 import com.android.internal.telephony.uicc.IccRefreshResponse;
+import com.android.internal.telephony.IccCardConstants;
 
 import android.content.BroadcastReceiver;
 import android.content.Context;
@@ -34,6 +35,8 @@ import com.android.internal.telephony.cat.CatLog;
  *
  */
 public class StkCmdReceiver extends BroadcastReceiver {
+    private static int SLOT0=0;
+    private static int SLOT1=1;
 
     @Override
     public void onReceive(Context context, Intent intent) {
@@ -51,6 +54,10 @@ public class StkCmdReceiver extends BroadcastReceiver {
             handleCardStatusChange(context, intent);
         } else if (action.equals(AppInterface.CAT_ALPHA_NOTIFY_ACTION)) {
             handleAlphaNotify(context, intent);
+        } else if (action.equals(AppInterface.CAT_ICC_STATE_CHANGED0)) {
+            handleIccStateChanged(context, intent, SLOT0);
+        } else if (action.equals(AppInterface.CAT_ICC_STATE_CHANGED1)) {
+            handleIccStateChanged(context, intent,SLOT1);
         }
     }
 
@@ -120,6 +127,32 @@ public class StkCmdReceiver extends BroadcastReceiver {
         String alphaString = intent.getStringExtra(AppInterface.ALPHA_STRING);
         args.putInt(StkAppService.OPCODE, StkAppService.OP_ALPHA_NOTIFY);
         args.putString(AppInterface.ALPHA_STRING, alphaString);
+        context.startService(new Intent(context, StkAppService.class)
+                .putExtras(args));
+    }
+    
+
+    private void handleIccStateChanged(Context context, Intent intent,int slotid) {
+        CatLog.d(this, "enter handleIccStateChanged");
+        if (StkAppService.getInstance() == null) {
+            CatLog.d(this, "enter handleIccStateChanged, StkAppService.getInstance() is null");
+            return;
+        }
+        Bundle args = new Bundle();
+        args.putInt(StkAppService.OPCODE, StkAppService.OP_CARD_STATE_CHANGED);
+
+        String stateExtra = intent.getStringExtra(IccCardConstants.INTENT_KEY_ICC_STATE);
+        
+        if (IccCardConstants.INTENT_VALUE_ICC_READY.equals(stateExtra)){
+            args.putBoolean(AppInterface.CARD_STATE,true);
+        }            
+        else if(IccCardConstants.INTENT_VALUE_ICC_DEACTIVATED.equals(stateExtra)){
+            args.putBoolean(AppInterface.CARD_STATE,false);
+        }
+        else {
+           return;
+        }
+        args.putInt(StkAppService.SLOT_ID, slotid);
         context.startService(new Intent(context, StkAppService.class)
                 .putExtras(args));
     }

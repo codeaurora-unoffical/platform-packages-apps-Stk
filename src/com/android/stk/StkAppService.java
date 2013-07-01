@@ -120,7 +120,7 @@ public class StkAppService extends Service {
     static final int OP_LOCALE_CHANGED = 8;
     static final int OP_CARD_STATUS_CHANGED = 9;
     static final int OP_ALPHA_NOTIFY = 10;
-
+    static final int OP_CARD_STATE_CHANGED = 24;
     //Invalid SetupEvent
     static final int INVALID_SETUP_EVENT = 0xFF;
 
@@ -232,6 +232,9 @@ public class StkAppService extends Service {
             }
             break;
         case OP_CARD_STATUS_CHANGED:
+            msg.obj = args;
+            break;
+        case OP_CARD_STATE_CHANGED:
             msg.obj = args;
             break;
         default:
@@ -476,6 +479,10 @@ public class StkAppService extends Service {
             case OP_ALPHA_NOTIFY:
                 handleAlphaNotify((Bundle) msg.obj);
                 break;
+            case OP_CARD_STATE_CHANGED:
+                CatLog.d(this, "Card/Icc State change received");
+                handleCardStateChanged((Bundle) msg.obj);
+                break;
             }
         }
 
@@ -517,6 +524,29 @@ public class StkAppService extends Service {
             }
         }
 
+        private void handleCardStateChanged(Bundle args) {
+            boolean cardState = args.getBoolean(AppInterface.CARD_STATE);
+
+            CatLog.d(this, "handleCardStateChanged: " + cardState);
+            
+            int slotid=0;
+            slotid=args.getInt(SLOT_ID);
+            CatLog.d(this, "handleCardStateChanged: mCurrentSlotId is " + mCurrentSlotId+", slotid is "+slotid);
+            if(slotid!=mCurrentSlotId) {
+                CatLog.d(this, "handleCardStateChanged: mCurrentSlotId & slotid is dismatch");
+                return;   
+            }
+            if (cardState == false) {
+                CatLog.d(this, "CARD is detected");
+                // Uninstall STKAPP, Clear Idle text, Stop StkAppService
+                StkAppInstaller.unInstall(mContext, slotid);
+
+            } else {         
+                if(mMainCmd!=null) {
+                    StkAppInstaller.install(mContext, slotid);
+                }
+            }
+        }
     private void handleScreenStatus(Bundle args) {
         mScreenIdle = args.getBoolean(SCREEN_STATUS);
 
