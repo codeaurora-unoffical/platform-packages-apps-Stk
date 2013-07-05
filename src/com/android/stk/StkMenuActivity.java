@@ -55,9 +55,6 @@ public class StkMenuActivity extends ListActivity {
 
     StkAppService appService = StkAppService.getInstance();
 
-    android.view.Menu mStkActionMenu;
-    boolean hasStkActionMenu = false;
-
     // Internal state values
     static final int STATE_MAIN = 1;
     static final int STATE_SECONDARY = 2;
@@ -104,6 +101,7 @@ public class StkMenuActivity extends ListActivity {
         CatLog.d(this, "onNewIntent");
         initFromIntent(intent);
         mAcceptUsersInput = true;
+        invalidateOptionsMenu();
     }
 
     @Override
@@ -199,7 +197,6 @@ public class StkMenuActivity extends ListActivity {
         super.onCreateOptionsMenu(menu);
         menu.add(0, StkApp.MENU_ID_END_SESSION, 1, R.string.menu_end_session);
         menu.add(0, StkApp.MENU_ID_HELP, 2, R.string.help);
-        mStkActionMenu = menu;
         return true;
     }
 
@@ -314,14 +311,8 @@ public class StkMenuActivity extends ListActivity {
 
             if (mState == STATE_SECONDARY) {
                 mStkMenu = intent.getParcelableExtra("MENU");
-                hasStkActionMenu = true;
-                mStkActionMenu.findItem(StkApp.MENU_ID_END_SESSION).setVisible(true);
             } else {
                 mStkMenu = appService.getMenu(mSlotId);
-                if (hasStkActionMenu){
-                    mStkActionMenu.findItem(StkApp.MENU_ID_END_SESSION).setVisible(false);
-                    hasStkActionMenu = false;
-                }
             }
         } else {
             finish();
