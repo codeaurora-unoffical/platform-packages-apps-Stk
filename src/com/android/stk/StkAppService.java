@@ -855,27 +855,24 @@ public class StkAppService extends Service {
             if (mUiccController == null) {
                 mUiccController = MSimUiccController.getInstance();
                 if (mUiccController == null) {
-                    // This should never happen as UiccController will be created by default.
-                    throw new RuntimeException("mUiccController is null when we need to" +
-                            " send response");
+                    CatLog.d(this,"mUiccController is null when we need to send response");
+                    return;
                 }
             }
 
             if (mStkService[mCurrentSlotId] == null) {
                 updateCatService(mCurrentSlotId);
                 if (mStkService[mCurrentSlotId] == null) {
-                    // This should never happen (we should be responding only to a message
-                    // that arrived from StkService). It has to exist by this time
-                    throw new RuntimeException("mStkService is null for subscription " +
+                    CatLog.d(this,"mStkService is null for subscription " +
                             mCurrentSlotId + " when we need to send response");
+                    return;
                 }
             }
         } else if (mStkService[0] == null) {
             mStkService[0] = com.android.internal.telephony.cat.CatService.getInstance();
             if (mStkService[0] == null) {
-                // This should never happen (we should be responding only to a message
-                // that arrived from StkService). It has to exist by this time
-                throw new RuntimeException("mStkService is null when we need to send response");
+                CatLog.d(this,"mStkService is null when we need to send response");
+                return;
             }
         }
 
