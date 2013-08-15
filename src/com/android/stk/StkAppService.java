@@ -694,10 +694,7 @@ public class StkAppService extends Service {
             break;
         case SELECT_ITEM:
             mCurrentMenu = cmdMsg.getMenu();
-            // If current app is not foreground, do not show StkMenuActivity.
-            if (isTopOfStack()) {
-                launchMenuActivity(cmdMsg.getMenu());
-            }
+            launchMenuActivity(cmdMsg.getMenu());
             break;
         case SET_UP_MENU:
             mMainCmd = mCurrentCmd;
