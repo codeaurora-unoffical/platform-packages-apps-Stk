@@ -233,8 +233,12 @@ public class StkAppService extends Service {
     private void updateCatServiceAndInitHandlerThread() {
         // Get cat service instance and create handler
         if (android.telephony.MSimTelephonyManager.getDefault().isMultiSimEnabled()) {
-            mUiccController = MSimUiccController.getInstance();
-            CatLog.d(this, "UiccController GetInstance: " + mUiccController);
+            try {
+                mUiccController = MSimUiccController.getInstance();
+                CatLog.d(this, "UiccController GetInstance: " + mUiccController);
+            } catch (Exception e) {
+                CatLog.d(this, "MSimUiccController still not start");
+            }
 
             for (int i = 0; i < mPhoneCount; i++) {
                 mHandlerThread[i] = new HandlerThread("ServiceHandler" + i);
@@ -255,11 +259,11 @@ public class StkAppService extends Service {
     private void updateCatService(int slotId) {
         if (mUiccController != null && mUiccController.getUiccCard(slotId) != null &&
                 mStkService[slotId] == null) {
-            mStkService[slotId] = ((MSimUiccCard)(mUiccController.getUiccCard(slotId))).
+            mStkService[slotId] = ((MSimUiccCard) (mUiccController.getUiccCard(slotId))).
                     getCatService();
+            CatLog.d(this, "CatService instance for subscription " + slotId + " is : " +
+                    mStkService[slotId] + " For card : " + mUiccController.getUiccCard(slotId));
         }
-        CatLog.d(this, "CatService instance for subscription " + slotId + " is : " +
-                mStkService[slotId] + " For card : " + mUiccController.getUiccCard(slotId));
     }
 
     @Override
@@ -858,14 +862,18 @@ public class StkAppService extends Service {
     }
 
     private void checkAndUpdateCatService() {
-        if (android.telephony.MSimTelephonyManager.getDefault().isMultiSimEnabled()) {
-            if (mUiccController == null) {
-                mUiccController = MSimUiccController.getInstance();
+            if (android.telephony.MSimTelephonyManager.getDefault().isMultiSimEnabled()) {
                 if (mUiccController == null) {
-                    CatLog.d(this, "mUiccController is null when we need to send response");
-                    return;
+                    try {
+                        mUiccController = MSimUiccController.getInstance();
+                    } catch (Exception e) {
+                        CatLog.d(this, "MSimUiccController not start");
+                    }
+                    if (mUiccController == null) {
+                        CatLog.d(this, "mUiccController is null when we need to send response");
+                        return;
+                    }
                 }
-            }
 
             if (mStkService[mCurrentSlotId] == null) {
                 updateCatService(mCurrentSlotId);
