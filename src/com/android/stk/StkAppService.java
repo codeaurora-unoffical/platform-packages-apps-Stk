@@ -534,6 +534,7 @@ public class StkAppService extends Service {
         CatResponseMessage resMsg = new CatResponseMessage(mCurrentCmd);
         CatLog.d(this, "SCREEN_BUSY");
         resMsg.setResultCode(ResultCode.TERMINAL_CRNTLY_UNABLE_TO_PROCESS);
+        checkAndUpdateCatService();
         mStkService[mCurrentSlotId].onCmdResponse(resMsg);
         // reset response needed state var to its original value.
         responseNeeded = true;
@@ -563,6 +564,7 @@ public class StkAppService extends Service {
         case SEND_USSD:
         case SET_UP_IDLE_MODE_TEXT:
         case SET_UP_MENU:
+        case REFRESH:
         case CLOSE_CHANNEL:
         case RECEIVE_DATA:
         case SEND_DATA:
@@ -718,6 +720,16 @@ public class StkAppService extends Service {
             waitForUsersResponse = false;
             launchEventMessage();
             break;
+        case REFRESH:
+            waitForUsersResponse = false;
+            launchEventMessage();
+            // Idle mode text needs to be cleared for init or reset modes of refresh.
+            if (cmdMsg.isRefreshResetOrInit()) {
+                mNotificationManager.cancel(STK_NOTIFICATION_ID);
+                mIdleModeTextCmd = null;
+                CatLog.d(this, "Clean idle mode text due to refresh");
+            }
+            break;
         case LAUNCH_BROWSER:
             launchConfirmationDialog(mCurrentCmd.geTextMessage());
             break;
@@ -803,15 +815,12 @@ public class StkAppService extends Service {
         return mMainMenu;
     }
 
-    private void handleCmdResponse(Bundle args) {
-        if (mCurrentCmd == null) {
-            return;
-        }
+    private void checkAndUpdateCatService() {
         if (android.telephony.MSimTelephonyManager.getDefault().isMultiSimEnabled()) {
             if (mUiccController == null) {
                 mUiccController = MSimUiccController.getInstance();
                 if (mUiccController == null) {
-                 // This should never happen as UiccController will be created by default.
+                    // This should never happen as UiccController will be created by default.
                     throw new RuntimeException("mUiccController is null when we need to" +
                                         " send response");
                 }
@@ -834,6 +843,15 @@ public class StkAppService extends Service {
                 throw new RuntimeException("mStkService is null when we need to send response");
             }
         }
+
+    }
+
+    private void handleCmdResponse(Bundle args) {
+        if (mCurrentCmd == null) {
+            return;
+        }
+
+        checkAndUpdateCatService();
 
         CatResponseMessage resMsg = new CatResponseMessage(mCurrentCmd);
 
@@ -1039,6 +1057,8 @@ public class StkAppService extends Service {
 
         resMsg.setResultCode(ResultCode.OK);
         resMsg.setEventDownload(event, addedInfo);
+
+        checkAndUpdateCatService();
 
         mStkService[mCurrentSlotId].onCmdResponse(resMsg);
     }
