@@ -216,7 +216,15 @@ public class StkMenuActivity extends ListActivity {
         menu.findItem(StkApp.MENU_ID_END_SESSION).setVisible(mainVisible);
         menu.findItem(StkApp.MENU_ID_HELP).setVisible(helpVisible);
 
+        if(!isDisplayMenu(mainVisible, helpVisible)) {
+            return false;
+        }
+
         return true;
+    }
+
+    private boolean isDisplayMenu(boolean mainVisible, boolean helpVisible) {
+        return mainVisible || helpVisible;
     }
 
     @Override
