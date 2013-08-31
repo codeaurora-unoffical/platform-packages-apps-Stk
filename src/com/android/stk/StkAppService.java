@@ -233,8 +233,12 @@ public class StkAppService extends Service {
     private void updateCatServiceAndInitHandlerThread() {
         // Get cat service instance and create handler
         if (android.telephony.MSimTelephonyManager.getDefault().isMultiSimEnabled()) {
-            mUiccController = MSimUiccController.getInstance();
-            CatLog.d(this, "UiccController GetInstance: " + mUiccController);
+            try {
+                mUiccController = MSimUiccController.getInstance();
+                CatLog.d(this, "UiccController GetInstance: " + mUiccController);
+            } catch (Exception e) {
+                CatLog.d(this, "MSimUiccController still not start");
+            }
 
             for (int i = 0; i < mPhoneCount; i++) {
                 mHandlerThread[i] = new HandlerThread("ServiceHandler" + i);
@@ -255,11 +259,11 @@ public class StkAppService extends Service {
     private void updateCatService(int slotId) {
         if (mUiccController != null && mUiccController.getUiccCard(slotId) != null &&
                 mStkService[slotId] == null) {
-            mStkService[slotId] = ((MSimUiccCard)(mUiccController.getUiccCard(slotId))).
+            mStkService[slotId] = ((MSimUiccCard) (mUiccController.getUiccCard(slotId))).
                     getCatService();
+            CatLog.d(this, "CatService instance for subscription " + slotId + " is : " +
+                    mStkService[slotId] + " For card : " + mUiccController.getUiccCard(slotId));
         }
-        CatLog.d(this, "CatService instance for subscription " + slotId + " is : " +
-                mStkService[slotId] + " For card : " + mUiccController.getUiccCard(slotId));
     }
 
     @Override
@@ -556,6 +560,7 @@ public class StkAppService extends Service {
         CatResponseMessage resMsg = new CatResponseMessage(mCurrentCmd);
         CatLog.d(this, "SCREEN_BUSY");
         resMsg.setResultCode(ResultCode.TERMINAL_CRNTLY_UNABLE_TO_PROCESS);
+        checkAndUpdateCatService();
         mStkService[mCurrentSlotId].onCmdResponse(resMsg);
         // reset response needed state var to its original value.
         responseNeeded = true;
@@ -585,6 +590,7 @@ public class StkAppService extends Service {
         case SEND_USSD:
         case SET_UP_IDLE_MODE_TEXT:
         case SET_UP_MENU:
+        case REFRESH:
         case CLOSE_CHANNEL:
         case RECEIVE_DATA:
         case SEND_DATA:
@@ -692,7 +698,10 @@ public class StkAppService extends Service {
             break;
         case SELECT_ITEM:
             mCurrentMenu = cmdMsg.getMenu();
-            launchMenuActivity(cmdMsg.getMenu());
+            // If current app is not foreground, do not show StkMenuActivity.
+            if (isTopOfStack()) {
+                launchMenuActivity(cmdMsg.getMenu());
+            }
             break;
         case SET_UP_MENU:
             mMainCmd = mCurrentCmd;
@@ -739,6 +748,16 @@ public class StkAppService extends Service {
         case SEND_USSD:
             waitForUsersResponse = false;
             launchEventMessage();
+            break;
+        case REFRESH:
+            waitForUsersResponse = false;
+            launchEventMessage();
+            // Idle mode text needs to be cleared for init or reset modes of refresh.
+            if (cmdMsg.isRefreshResetOrInit()) {
+                mNotificationManager.cancel(STK_NOTIFICATION_ID);
+                mIdleModeTextCmd = null;
+                CatLog.d(this, "Clean idle mode text due to refresh");
+            }
             break;
         case LAUNCH_BROWSER:
             launchConfirmationDialog(mCurrentCmd.geTextMessage());
@@ -842,37 +861,44 @@ public class StkAppService extends Service {
         return mMainMenu;
     }
 
-    private void handleCmdResponse(Bundle args) {
-        if (mCurrentCmd == null) {
-            return;
-        }
-        if (android.telephony.MSimTelephonyManager.getDefault().isMultiSimEnabled()) {
-            if (mUiccController == null) {
-                mUiccController = MSimUiccController.getInstance();
+    private void checkAndUpdateCatService() {
+            if (android.telephony.MSimTelephonyManager.getDefault().isMultiSimEnabled()) {
                 if (mUiccController == null) {
-                 // This should never happen as UiccController will be created by default.
-                    throw new RuntimeException("mUiccController is null when we need to" +
-                                        " send response");
+                    try {
+                        mUiccController = MSimUiccController.getInstance();
+                    } catch (Exception e) {
+                        CatLog.d(this, "MSimUiccController not start");
+                    }
+                    if (mUiccController == null) {
+                        CatLog.d(this, "mUiccController is null when we need to send response");
+                        return;
+                    }
                 }
-            }
 
             if (mStkService[mCurrentSlotId] == null) {
                 updateCatService(mCurrentSlotId);
                 if (mStkService[mCurrentSlotId] == null) {
-                    // This should never happen (we should be responding only to a message
-                    // that arrived from StkService). It has to exist by this time
-                    throw new RuntimeException("mStkService is null for subscription " +
-                                        mCurrentSlotId + " when we need to send response");
+                    CatLog.d(this, "mStkService is null for subscription " +
+                            mCurrentSlotId + " when we need to send response");
+                    return;
                 }
             }
         } else if (mStkService[0] == null) {
             mStkService[0] = com.android.internal.telephony.cat.CatService.getInstance();
             if (mStkService[0] == null) {
-                // This should never happen (we should be responding only to a message
-                // that arrived from StkService). It has to exist by this time
-                throw new RuntimeException("mStkService is null when we need to send response");
+                CatLog.d(this, "mStkService is null when we need to send response");
+                return;
             }
         }
+
+    }
+
+    private void handleCmdResponse(Bundle args) {
+        if (mCurrentCmd == null) {
+            return;
+        }
+
+        checkAndUpdateCatService();
 
         CatResponseMessage resMsg = new CatResponseMessage(mCurrentCmd);
 
@@ -1078,6 +1104,8 @@ public class StkAppService extends Service {
 
         resMsg.setResultCode(ResultCode.OK);
         resMsg.setEventDownload(event, addedInfo);
+
+        checkAndUpdateCatService();
 
         mStkService[mCurrentSlotId].onCmdResponse(resMsg);
     }
