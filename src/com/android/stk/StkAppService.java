@@ -398,6 +398,9 @@ public class StkAppService extends Service {
                 CatLog.d(this, "OP_LAUNCH_APP mcurrent slot is "+ mCurrentSlotId + "isMain: "
                         + isMain);
                     if (mMainCmd == null) {
+                        if(isAirplaneModeOn() && isMain == MAIN) {
+                            notifyAirplaneModeDialog();
+                        }
                         // nothing todo when no SET UP MENU command didn't arrive.
                         return;
                     }
@@ -466,7 +469,7 @@ public class StkAppService extends Service {
                 break;
             case OP_BOOT_COMPLETED:
                 CatLog.d(this, "OP_BOOT_COMPLETED");
-                if (mMainCmd == null) {
+                if (mMainCmd == null && !isAirplaneModeOn()) {
                     StkAppInstaller.unInstall(mContext, mCurrentSlotId);
                 }
                 break;
@@ -490,14 +493,38 @@ public class StkAppService extends Service {
             }
         }
 
+        private void notifyAirplaneModeDialog() {
+             final AlertDialog dialog = new AlertDialog.Builder(mContext)
+             .setIconAttribute(android.R.attr.alertDialogIcon)
+             .setTitle(R.string.stk_dialog_title)
+             .setMessage(R.string.stk_disable_airplane)
+             .setPositiveButton(R.string.button_ok, new DialogInterface.OnClickListener() {
+                 @Override
+                 public void onClick(DialogInterface dialog, int which) {
+                     dialog.dismiss();
+                 }
+              })
+             .create();
+
+             dialog.getWindow().setType(WindowManager.LayoutParams.TYPE_SYSTEM_ALERT);
+             dialog.show();
+        }
+
+        private boolean isAirplaneModeOn() {
+            return Settings.Global.getInt(getContentResolver(),
+                    Settings.Global.AIRPLANE_MODE_ON, 0) != 0;
+        }
+
         private void handleCardStatusChangeAndIccRefresh(Bundle args) {
             boolean cardStatus = args.getBoolean(AppInterface.CARD_STATUS);
 
             CatLog.d(this, "CardStatus: " + cardStatus);
             if (cardStatus == false) {
                 CatLog.d(this, "CARD is ABSENT");
-                // Uninstall STKAPP, Clear Idle text, Menu related variables.
-                StkAppInstaller.unInstall(mContext, mCurrentSlotId);
+                if(!isAirplaneModeOn()) {
+                    // Uninstall STKAPP, Clear Idle text, Menu related variables.
+                    StkAppInstaller.unInstall(mContext, mCurrentSlotId);
+                }
                 mNotificationManager.cancel(STK_NOTIFICATION_ID);
                 mCurrentMenu = null;
                 mMainCmd = null;
