@@ -1079,7 +1079,6 @@ public class StkAppService extends Service {
     private void launchTextDialog() {
         Intent newIntent = new Intent(sInstance, StkDialogActivity.class);
         newIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK
-                | Intent.FLAG_ACTIVITY_CLEAR_TASK
                 | Intent.FLAG_ACTIVITY_SINGLE_TOP
                 | Intent.FLAG_ACTIVITY_NO_HISTORY
                 | Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS
