@@ -161,15 +161,7 @@ public class StkDialogActivity extends Activity implements View.OnClickListener 
     public void onPause() {
         super.onPause();
 
-        /*
-         * do not cancel the timer here cancelTimeOut(). If any higher/lower
-         * priority events such as incoming call, new sms, screen off intent,
-         * notification alerts, user actions such as 'User moving to another activtiy'
-         * etc.. occur during Display Text ongoing session,
-         * this activity would receive 'onPause()' event resulting in
-         * cancellation of the timer. As a result no terminal response is
-         * sent to the card.
-         */
+        cancelTimeOut();
 
         appService.setDisplayTextDlgVisibility(false, mSlotId);
 
