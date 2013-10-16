@@ -59,6 +59,7 @@ import com.android.internal.telephony.cat.Item;
 import com.android.internal.telephony.cat.Input;
 import com.android.internal.telephony.cat.ResultCode;
 import com.android.internal.telephony.cat.CatCmdMessage;
+import com.android.internal.telephony.cat.ToneSettings;
 import com.android.internal.telephony.cat.CatCmdMessage.BrowserSettings;
 import com.android.internal.telephony.cat.CatCmdMessage.SetupEventListSettings;
 import com.android.internal.telephony.cat.CatLog;
@@ -1302,13 +1303,26 @@ public class StkAppService extends Service {
     }
 
     private void launchToneDialog() {
+        TextMessage toneMsg = mCurrentCmd.geTextMessage();
+
+        // Start ToneDialog activity with default text when there is no alpha data and play tone
+        // Otherwise, start activity with data from the current command
+        if (toneMsg.text == null) {
+            CatLog.d(this, "toneMsg.text " + toneMsg.text
+                    + " Starting ToneDialog activity with default message.");
+            toneMsg.text = getResources().getString(R.string.default_tone_dialog_msg);
+        } else {
+            // Start activity with data from current command
+            CatLog.d(this, "toneMsg.text: " + toneMsg.text + " Starting ToneDialog Activity");
+        }
+
         Intent newIntent = new Intent(sInstance, ToneDialog.class);
         newIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK
                 | Intent.FLAG_ACTIVITY_NO_HISTORY
                 | Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS
                 | getFlagActivityNoUserAction(InitiatedByUserAction.unknown));
-        newIntent.putExtra("TEXT", mCurrentCmd.geTextMessage());
         newIntent.putExtra("TONE", mCurrentCmd.getToneSettings());
+        newIntent.putExtra("TEXT", toneMsg);
         newIntent.putExtra(SLOT_ID, mCurrentSlotId);
         startActivity(newIntent);
     }
