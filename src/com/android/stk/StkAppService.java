@@ -684,6 +684,7 @@ public class StkAppService extends Service {
             if (removeMenu()) {
                 CatLog.d(this, "Uninstall App");
                 mCurrentMenu = null;
+                mMainCmd = null;
                 StkAppInstaller.unInstall(mContext, mCurrentSlotId);
             } else {
                 CatLog.d(this, "Install App");
@@ -704,14 +705,9 @@ public class StkAppService extends Service {
             TextMessage idleModeText = mCurrentCmd.geTextMessage();
             // Send intent to ActivityManagerService to get the screen status
             Intent idleStkIntent  = new Intent(AppInterface.CHECK_SCREEN_IDLE_ACTION);
-            if (idleModeText != null) {
-                if (idleModeText.text != null) {
-                    idleStkIntent.putExtra(SCREEN_STATUS_REQUEST,true);
-                } else {
-                    idleStkIntent.putExtra(SCREEN_STATUS_REQUEST,false);
+            if (idleModeText == null) {
                     launchIdleText();
                     mIdleModeTextCmd = null;
-                }
             }
             CatLog.d(this, "set up idle mode");
             mCurrentCmd = mMainCmd;
@@ -721,6 +717,7 @@ public class StkAppService extends Service {
         case SEND_SMS:
         case SEND_SS:
         case SEND_USSD:
+        case GET_CHANNEL_STATUS:
             waitForUsersResponse = false;
             launchEventMessage();
             break;
@@ -1262,13 +1259,10 @@ public class StkAppService extends Service {
     private void launchIdleText() {
         TextMessage msg = mIdleModeTextCmd.geTextMessage();
 
-        if (msg == null) {
-            CatLog.d(this, "mCurrent.getTextMessage is NULL");
+        if ((msg == null) || (msg.text == null)) {
+            CatLog.d(this, "mCurrent.getTextMessage or msg.text is NULL");
             mNotificationManager.cancel(STK_NOTIFICATION_ID);
             return;
-        }
-        if (msg.text == null) {
-            mNotificationManager.cancel(STK_NOTIFICATION_ID);
         } else {
             PendingIntent pendingIntent = PendingIntent.getService(mContext, 0,
                     new Intent(mContext, StkAppService.class), 0);
