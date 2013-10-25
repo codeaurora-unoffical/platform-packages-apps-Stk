@@ -19,11 +19,13 @@
 package com.android.stk;
 
 import android.app.ActivityManager;
+import android.app.ActivityManager.RunningTaskInfo;
 import android.app.AlertDialog;
 import android.app.Notification;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.app.Service;
+import android.content.ComponentName;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
@@ -57,6 +59,7 @@ import com.android.internal.telephony.cat.Item;
 import com.android.internal.telephony.cat.Input;
 import com.android.internal.telephony.cat.ResultCode;
 import com.android.internal.telephony.cat.CatCmdMessage;
+import com.android.internal.telephony.cat.ToneSettings;
 import com.android.internal.telephony.cat.CatCmdMessage.BrowserSettings;
 import com.android.internal.telephony.cat.CatCmdMessage.SetupEventListSettings;
 import com.android.internal.telephony.cat.CatLog;
@@ -68,8 +71,9 @@ import com.android.internal.telephony.uicc.IccCardStatus.CardState;
 import com.codeaurora.telephony.msim.MSimUiccCard;
 import com.codeaurora.telephony.msim.MSimUiccController;
 
+import java.util.Iterator;
 import java.util.LinkedList;
-
+import java.util.List;
 import static com.android.internal.telephony.cat.CatCmdMessage.
                    SetupEventListConstants.IDLE_SCREEN_AVAILABLE_EVENT;
 import static com.android.internal.telephony.cat.CatCmdMessage.
@@ -733,6 +737,7 @@ public class StkAppService extends Service {
             if (removeMenu()) {
                 CatLog.d(this, "Uninstall App");
                 mCurrentMenu = null;
+                mMainCmd = null;
                 StkAppInstaller.unInstall(mContext, mCurrentSlotId);
             } else {
                 CatLog.d(this, "Install App");
@@ -753,14 +758,9 @@ public class StkAppService extends Service {
             TextMessage idleModeText = mCurrentCmd.geTextMessage();
             // Send intent to ActivityManagerService to get the screen status
             Intent idleStkIntent  = new Intent(AppInterface.CHECK_SCREEN_IDLE_ACTION);
-            if (idleModeText != null) {
-                if (idleModeText.text != null) {
-                    idleStkIntent.putExtra(SCREEN_STATUS_REQUEST,true);
-                } else {
-                    idleStkIntent.putExtra(SCREEN_STATUS_REQUEST,false);
+            if (idleModeText == null) {
                     launchIdleText();
                     mIdleModeTextCmd = null;
-                }
             }
             CatLog.d(this, "set up idle mode");
             mCurrentCmd = mMainCmd;
@@ -770,6 +770,7 @@ public class StkAppService extends Service {
         case SEND_SMS:
         case SEND_SS:
         case SEND_USSD:
+        case GET_CHANNEL_STATUS:
             waitForUsersResponse = false;
             launchEventMessage();
             break;
@@ -787,7 +788,12 @@ public class StkAppService extends Service {
             launchConfirmationDialog(mCurrentCmd.geTextMessage());
             break;
         case SET_UP_CALL:
-            launchConfirmationDialog(mCurrentCmd.getCallSettings().confirmMsg);
+            TextMessage mesg = mCurrentCmd.getCallSettings().confirmMsg;
+            if((mesg != null) && (mesg.text == null || mesg.text.length() == 0)) {
+                mesg.text = getResources().getString(R.string.default_setup_call_msg);
+            }
+            CatLog.d(this, "SET_UP_CALL mesg.text " + mesg.text);
+            launchConfirmationDialog(mesg);
             break;
         case PLAY_TONE:
             launchToneDialog();
@@ -980,11 +986,22 @@ public class StkAppService extends Service {
                 }
                 break;
             case LAUNCH_BROWSER:
-                resMsg.setResultCode(confirmed ? ResultCode.OK
-                        : ResultCode.UICC_SESSION_TERM_BY_USER);
-                if (confirmed) {
-                    launchBrowser = true;
-                    mBrowserSettings = mCurrentCmd.getBrowserSettings();
+                mBrowserSettings = mCurrentCmd.getBrowserSettings();
+                /* If Launch Browser mode is LAUNCH_IF_NOT_ALREADY_LAUNCHED
+                 * and if the browser is already launched then send the error
+                 * code and additional info indicating 'Browser Unavilable'(0x02)
+                 */
+                if ( (mBrowserSettings.mode == LaunchBrowserMode.LAUNCH_IF_NOT_ALREADY_LAUNCHED) &&
+                        confirmed && isBrowserLaunched(mContext)) {
+                    resMsg.setResultCode(ResultCode.LAUNCH_BROWSER_ERROR);
+                    resMsg.setAdditionalInfo(true,0x02);
+                    CatLog.d(this, "LAUNCH_BROWSER_ERROR - Browser_Unavailable");
+                } else {
+                    resMsg.setResultCode(confirmed ? ResultCode.OK
+                            : ResultCode.UICC_SESSION_TERM_BY_USER);
+                    if (confirmed) {
+                        launchBrowser = true;
+                    }
                 }
                 break;
             case SET_UP_CALL:
@@ -1294,16 +1311,33 @@ public class StkAppService extends Service {
         } catch (InterruptedException e) {}
     }
 
+    private boolean isBrowserLaunched(Context context) {
+        int MAX_TASKS = 99;
+        ActivityManager mAcivityManager = (ActivityManager) context.
+                getSystemService(ACTIVITY_SERVICE);
+        if (mAcivityManager == null) return false;
+        List<RunningTaskInfo> mRunningTasksList = mAcivityManager.getRunningTasks(MAX_TASKS);
+        Iterator<RunningTaskInfo> mIterator = mRunningTasksList.iterator();
+        while (mIterator.hasNext()) {
+            RunningTaskInfo mRunningTask = mIterator.next();
+                if (mRunningTask != null) {
+                    ComponentName runningTaskComponent = mRunningTask.baseActivity;
+                    if (runningTaskComponent.getClassName().
+                            equals("com.android.browser.BrowserActivity")) {
+                        return true;
+                    }
+                }
+        }
+        return false;
+    }
+
     private void launchIdleText() {
         TextMessage msg = mIdleModeTextCmd.geTextMessage();
 
-        if (msg == null) {
-            CatLog.d(this, "mCurrent.getTextMessage is NULL");
+        if ((msg == null) || (msg.text == null)) {
+            CatLog.d(this, "mCurrent.getTextMessage or msg.text is NULL");
             mNotificationManager.cancel(STK_NOTIFICATION_ID);
             return;
-        }
-        if (msg.text == null) {
-            mNotificationManager.cancel(STK_NOTIFICATION_ID);
         } else {
             PendingIntent pendingIntent = PendingIntent.getService(mContext, 0,
                     new Intent(mContext, StkAppService.class), 0);
@@ -1333,13 +1367,26 @@ public class StkAppService extends Service {
     }
 
     private void launchToneDialog() {
+        TextMessage toneMsg = mCurrentCmd.geTextMessage();
+
+        // Start ToneDialog activity with default text when there is no alpha data and play tone
+        // Otherwise, start activity with data from the current command
+        if (toneMsg.text == null) {
+            CatLog.d(this, "toneMsg.text " + toneMsg.text
+                    + " Starting ToneDialog activity with default message.");
+            toneMsg.text = getResources().getString(R.string.default_tone_dialog_msg);
+        } else {
+            // Start activity with data from current command
+            CatLog.d(this, "toneMsg.text: " + toneMsg.text + " Starting ToneDialog Activity");
+        }
+
         Intent newIntent = new Intent(sInstance, ToneDialog.class);
         newIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK
                 | Intent.FLAG_ACTIVITY_NO_HISTORY
                 | Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS
                 | getFlagActivityNoUserAction(InitiatedByUserAction.unknown));
-        newIntent.putExtra("TEXT", mCurrentCmd.geTextMessage());
         newIntent.putExtra("TONE", mCurrentCmd.getToneSettings());
+        newIntent.putExtra("TEXT", toneMsg);
         newIntent.putExtra(SLOT_ID, mCurrentSlotId);
         startActivity(newIntent);
     }
