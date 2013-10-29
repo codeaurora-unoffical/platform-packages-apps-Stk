@@ -162,6 +162,8 @@ public class StkAppService extends Service {
     // ID to  distinguish the main handler to handle OP_LAUNCH_APP
     private static final int SECONDARY = 0;
     private static final int MAIN = 1;
+    private Toast ToastMsg;
+
     @Override
     public void onCreate() {
         // Get Phone count
@@ -1129,6 +1131,10 @@ public class StkAppService extends Service {
                 | getFlagActivityNoUserAction(InitiatedByUserAction.unknown));
         newIntent.putExtra(SLOT_ID, mCurrentSlotId);
         newIntent.putExtra("TEXT", mCurrentCmd.geTextMessage());
+        //In StkDialogActivity display.close toast.
+        if(ToastMsg != null){
+            ToastMsg.cancel();
+        }
         startActivity(newIntent);
     }
 
@@ -1219,7 +1225,7 @@ public class StkAppService extends Service {
         if (msg == null || msg.text == null) {
             return;
         }
-        Toast toast = new Toast(mContext.getApplicationContext());
+        ToastMsg = new Toast(mContext.getApplicationContext());
         LayoutInflater inflate = (LayoutInflater) mContext
                 .getSystemService(Context.LAYOUT_INFLATER_SERVICE);
         View v = inflate.inflate(R.layout.stk_event_msg, null);
@@ -1242,10 +1248,10 @@ public class StkAppService extends Service {
             tv.setText(msg.text);
         }
 
-        toast.setView(v);
-        toast.setDuration(Toast.LENGTH_LONG);
-        toast.setGravity(Gravity.BOTTOM, 0, 0);
-        toast.show();
+        ToastMsg.setView(v);
+        ToastMsg.setDuration(Toast.LENGTH_LONG);
+        ToastMsg.setGravity(Gravity.BOTTOM, 0, 0);
+        ToastMsg.show();
     }
 
     private void launchConfirmationDialog(TextMessage msg) {
