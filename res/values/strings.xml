@@ -65,4 +65,5 @@
     <string name="stk_dialog_reject">NO</string>
     <string name="stk_disable_airplane">"Airplane mode has been opened, please disable airplane mode first."</string>
     <string name="stk_simstate_wrong">Sim %1$d is not available now!</string>
+    <string name="toast_dialing">Calling</string>
 </resources>

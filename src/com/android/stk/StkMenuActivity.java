@@ -36,6 +36,8 @@ import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import com.android.internal.telephony.Call;
+import com.android.internal.telephony.CallManager;
 import com.android.internal.telephony.cat.Item;
 import com.android.internal.telephony.cat.Menu;
 import com.android.internal.telephony.cat.CatLog;
@@ -66,14 +68,26 @@ public class StkMenuActivity extends ListActivity {
     // message id for time out
     private static final int MSG_ID_TIMEOUT = 1;
 
+    private static final int MSG_CALL_STATE_CHANGED = 2;
+    private CallManager mCM = CallManager.getInstance();
+    private Toast dialingToast;
+
     Handler mTimeoutHandler = new Handler() {
         @Override
         public void handleMessage(Message msg) {
             switch(msg.what) {
-            case MSG_ID_TIMEOUT:
-                mAcceptUsersInput = false;
-                sendResponse(StkAppService.RES_ID_TIMEOUT);
-                break;
+                case MSG_ID_TIMEOUT:
+                    mAcceptUsersInput = false;
+                    sendResponse(StkAppService.RES_ID_TIMEOUT);
+                    break;
+                case MSG_CALL_STATE_CHANGED:
+                    if (mCM.getActiveFgCallState() == Call.State.DIALING) {
+                        dialingToast = Toast.makeText(mContext, R.string.toast_dialing,
+                                Toast.LENGTH_LONG);
+                        dialingToast.show();
+                    } else if (dialingToast != null) {
+                        dialingToast.cancel();
+                    }
             }
         }
     };
@@ -95,6 +109,7 @@ public class StkMenuActivity extends ListActivity {
 
         initFromIntent(getIntent());
         mAcceptUsersInput = true;
+        mCM.registerForPreciseCallStateChanged(mTimeoutHandler, MSG_CALL_STATE_CHANGED, null);
     }
 
     @Override
@@ -199,7 +214,7 @@ public class StkMenuActivity extends ListActivity {
     @Override
     public void onDestroy() {
         super.onDestroy();
-
+        mCM.unregisterForPreciseCallStateChanged(mTimeoutHandler);
         CatLog.d(this, "onDestroy");
     }
 
