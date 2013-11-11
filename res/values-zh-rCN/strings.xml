@@ -42,4 +42,5 @@
     <string name="stk_dialog_reject" msgid="921848059485746796">"否"</string>
     <string name="stk_disable_airplane">"飞行模式已经打开，请先关闭飞行模式。"</string>
     <string name="stk_simstate_wrong">Sim卡 %1$d 不可用！</string>
+    <string name="toast_dialing">"呼叫中"</string>
 </resources>
