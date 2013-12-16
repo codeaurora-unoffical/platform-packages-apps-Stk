@@ -523,6 +523,7 @@ public class StkAppService extends Service {
                 launchTextDialog();
             }
             mDisplayText = false;
+            mCurrentCmd = mMainCmd;
             // If an idle text proactive command is set then the
             // request for getting screen status still holds true.
             if (mIdleModeTextCmd == null) {
@@ -602,7 +603,7 @@ public class StkAppService extends Service {
     }
 
     private void handleSessionEnd() {
-        mCurrentCmd = mMainCmd;
+        if (!mDisplayText) mCurrentCmd = mMainCmd;
         lastSelectedItem = null;
         cancelTimeOut();
         // In case of SET UP MENU command which removed the app, don't
