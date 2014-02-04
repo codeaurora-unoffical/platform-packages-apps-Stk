@@ -335,7 +335,8 @@ public class StkAppService extends Service {
         private LinkedList<DelayedCmd> mCmdsQ = new LinkedList<DelayedCmd>();
         private CatCmdMessage mCurrentSetupEventCmd = null;
         private CatCmdMessage mIdleModeTextCmd = null;
-        private boolean mDisplayText = false;
+        private boolean mIsDisplayTextPending = false;
+        private boolean mIsWaitingOnScreenStatus = false;
         private boolean mScreenIdle = true;
         private Menu mMainMenu = null;
         private int mCurrentSlotId = 0;
@@ -426,7 +427,7 @@ public class StkAppService extends Service {
                 }
                 break;
             case OP_RESPONSE:
-                if (responseNeeded) {
+                if (responseNeeded || mIsDisplayTextPending) {
                     handleCmdResponse((Bundle) msg.obj);
                 }
                 // call delayed commands if needed.
@@ -437,6 +438,8 @@ public class StkAppService extends Service {
                 }
                 // reset response needed state var to its original value.
                 responseNeeded = true;
+                //reset mIsDisplayTextPending after sending the response.
+                mIsDisplayTextPending = false;
                 break;
             case OP_END_SESSION:
                 if (!mCmdInProgress) {
@@ -516,14 +519,17 @@ public class StkAppService extends Service {
         if (mIdleModeTextCmd != null) {
            launchIdleText();
         }
-        if (mDisplayText) {
+
+        // This check will make sure that unwanted busy terminal
+        // response wont be sent, in cases where user response is needed.
+        if (mIsDisplayTextPending && mIsWaitingOnScreenStatus) {
             if (!mScreenIdle) {
                 sendScreenBusyResponse();
+                mIsDisplayTextPending = false;
             } else {
                 launchTextDialog();
             }
-            mDisplayText = false;
-            mCurrentCmd = mMainCmd;
+            mIsWaitingOnScreenStatus = false;
             // If an idle text proactive command is set then the
             // request for getting screen status still holds true.
             if (mIdleModeTextCmd == null) {
@@ -552,12 +558,13 @@ public class StkAppService extends Service {
         }
     }
 
-    private void sendResponse(int resId) {
+    private void sendResponse(int resId, int slotId, boolean confirm) {
         Message msg = this.obtainMessage();
         msg.arg1 = OP_RESPONSE;
         Bundle args = new Bundle();
         args.putInt(StkAppService.RES_ID, resId);
-        args.putInt(StkAppService.SLOT_ID, mCurrentSlotId);
+        args.putInt(StkAppService.SLOT_ID, slotId);
+        args.putBoolean(StkAppService.CONFIRMATION, confirm);
         CatLog.d(this, "sendResponse mCurrentSlotId: " + mCurrentSlotId );
         msg.obj = args;
         this.sendMessage(msg);
@@ -603,7 +610,7 @@ public class StkAppService extends Service {
     }
 
     private void handleSessionEnd() {
-        if (!mDisplayText) mCurrentCmd = mMainCmd;
+        mCurrentCmd = mMainCmd;
         lastSelectedItem = null;
         cancelTimeOut();
         // In case of SET UP MENU command which removed the app, don't
@@ -672,7 +679,8 @@ public class StkAppService extends Service {
                 Intent StkIntent = new Intent(AppInterface.CHECK_SCREEN_IDLE_ACTION);
                 StkIntent.putExtra(SCREEN_STATUS_REQUEST, true);
                 sendBroadcast(StkIntent);
-                mDisplayText = true;
+                mIsDisplayTextPending = true;
+                mIsWaitingOnScreenStatus = true;
             } else {
                 launchTextDialog();
             }
@@ -778,7 +786,7 @@ public class StkAppService extends Service {
             mSetupEventListSettings = mCurrentCmd.getSetEventList();
             mCurrentSetupEventCmd = mCurrentCmd;
             mCurrentCmd = mMainCmd;
-            if ((mIdleModeTextCmd == null) && (!mDisplayText)) {
+            if ((mIdleModeTextCmd == null) && (!mIsDisplayTextPending)) {
 
                 for (int i : mSetupEventListSettings.eventList) {
                     if (i == IDLE_SCREEN_AVAILABLE_EVENT) {
@@ -1063,6 +1071,11 @@ public class StkAppService extends Service {
         newIntent.putExtra(SLOT_ID, mCurrentSlotId);
         newIntent.putExtra("TEXT", mCurrentCmd.geTextMessage());
         startActivity(newIntent);
+        //For low priority display texts where no application response
+        //is needed, send the command response after launching the text dialog.
+        if (!responseNeeded) {
+            sendResponse(RES_ID_CONFIRM, mCurrentSlotId, true);
+        }
     }
 
     private void sendSetUpEventResponse(int event, byte[] addedInfo) {
@@ -1457,7 +1470,8 @@ public class StkAppService extends Service {
         mCmdsQ.clear();
         mCurrentSetupEventCmd = null;
         mIdleModeTextCmd = null;
-        mDisplayText = false;
+        mIsDisplayTextPending = false;
+        mIsWaitingOnScreenStatus = false;
         mScreenIdle = true;
         mMainMenu = null;
         mCurrentSlotId = 0;
