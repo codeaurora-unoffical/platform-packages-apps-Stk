@@ -24,8 +24,6 @@ import android.content.Intent;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
-import android.telephony.MSimTelephonyManager;
-import android.telephony.TelephonyManager;
 import android.view.KeyEvent;
 import android.view.MenuItem;
 import android.view.View;
@@ -34,7 +32,6 @@ import android.widget.ImageView;
 import android.widget.ListView;
 import android.widget.ProgressBar;
 import android.widget.TextView;
-import android.widget.Toast;
 
 import com.android.internal.telephony.cat.Item;
 import com.android.internal.telephony.cat.Menu;
@@ -152,14 +149,6 @@ public class StkMenuActivity extends ListActivity {
     public void onResume() {
         super.onResume();
 
-        if (MSimTelephonyManager.getDefault().getSimState(mSlotId)
-                        != TelephonyManager.SIM_STATE_READY) {
-            String text = String.format(
-                    getResources().getString(R.string.stk_simstate_wrong), mSlotId + 1);
-            Toast.makeText(this, text, Toast.LENGTH_SHORT).show();
-            finish();
-            return;
-        }
         appService.indicateMenuVisibility(true, mSlotId);
         if (mStkMenu == null) {
             finish();
