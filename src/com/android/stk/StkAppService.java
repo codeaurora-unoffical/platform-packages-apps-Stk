@@ -951,11 +951,22 @@ public class StkAppService extends Service {
                 }
                 break;
             case LAUNCH_BROWSER:
-                resMsg.setResultCode(confirmed ? ResultCode.OK
-                        : ResultCode.UICC_SESSION_TERM_BY_USER);
-                if (confirmed) {
-                    launchBrowser = true;
-                    mBrowserSettings = mCurrentCmd.getBrowserSettings();
+                mBrowserSettings = mCurrentCmd.getBrowserSettings();
+                /* If Launch Browser mode is LAUNCH_IF_NOT_ALREADY_LAUNCHED
+                 * and if the browser is already launched then send the error
+                 * code and additional info indicating 'Browser Unavilable'(0x02)
+                 */
+                if ( (mBrowserSettings.mode == LaunchBrowserMode.LAUNCH_IF_NOT_ALREADY_LAUNCHED) &&
+                        confirmed && isBrowserLaunched(mContext)) {
+                    resMsg.setResultCode(ResultCode.LAUNCH_BROWSER_ERROR);
+                    resMsg.setAdditionalInfo(0x02);
+                    CatLog.d(this, "LAUNCH_BROWSER_ERROR - Browser_Unavailable");
+                } else {
+                    resMsg.setResultCode(confirmed ? ResultCode.OK
+                            : ResultCode.UICC_SESSION_TERM_BY_USER);
+                    if (confirmed) {
+                        launchBrowser = true;
+                    }
                 }
                 break;
             case SET_UP_CALL:
@@ -1270,6 +1281,26 @@ public class StkAppService extends Service {
         try {
             Thread.sleep(10000);
         } catch (InterruptedException e) {}
+    }
+
+    private boolean isBrowserLaunched(Context context) {
+        int MAX_TASKS = 99;
+        ActivityManager mAcivityManager = (ActivityManager) context.
+                getSystemService(ACTIVITY_SERVICE);
+        if (mAcivityManager == null) return false;
+        List<RunningTaskInfo> mRunningTasksList = mAcivityManager.getRunningTasks(MAX_TASKS);
+        Iterator<RunningTaskInfo> mIterator = mRunningTasksList.iterator();
+        while (mIterator.hasNext()) {
+            RunningTaskInfo mRunningTask = mIterator.next();
+                if (mRunningTask != null) {
+                    ComponentName runningTaskComponent = mRunningTask.baseActivity;
+                    if (runningTaskComponent.getClassName().
+                            equals("com.android.browser.BrowserActivity")) {
+                        return true;
+                    }
+                }
+        }
+        return false;
     }
 
     private void launchIdleText() {
