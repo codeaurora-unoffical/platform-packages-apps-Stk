@@ -51,6 +51,8 @@ public class StkCmdReceiver extends BroadcastReceiver {
             handleCardStatusChange(context, intent);
         } else if (action.equals(AppInterface.CAT_ALPHA_NOTIFY_ACTION)) {
             handleAlphaNotify(context, intent);
+        } else if (action.equals(AppInterface.CAT_HCI_CONNECTIVITY_ACTION)) {
+            handleHciConnectivity(context, intent);
         }
     }
 
@@ -116,5 +118,14 @@ public class StkCmdReceiver extends BroadcastReceiver {
         args.putInt(StkAppService.SLOT_ID, intent.getIntExtra("SLOT_ID", 0));
         context.startService(new Intent(context, StkAppService.class)
                 .putExtras(args));
+    }
+
+    private void handleHciConnectivity(Context context, Intent intent) {
+       Bundle args =  new Bundle();
+       int slotId = intent.getIntExtra("SLOT_ID", 0);
+       args.putInt(StkAppService.SLOT_ID, slotId);
+       args.putInt(StkAppService.OPCODE, StkAppService.OP_HCI_CONNECTIVITY);
+       context.startService(new Intent(context, StkAppService.class)
+               .putExtras(args));
     }
 }
