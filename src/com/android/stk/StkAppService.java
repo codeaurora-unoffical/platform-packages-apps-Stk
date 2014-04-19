@@ -328,7 +328,6 @@ public class StkAppService extends Service {
         private CatCmdMessage mCurrentCmd = null;
         private Menu mCurrentMenu = null;
         private String lastSelectedItem = null;
-        private boolean responseNeeded = true;
         private boolean mCmdInProgress = false;
         private boolean launchBrowser = false;
         private BrowserSettings mBrowserSettings = null;
@@ -337,7 +336,6 @@ public class StkAppService extends Service {
         private CatCmdMessage mCurrentSetupEventCmd = null;
         private CatCmdMessage mIdleModeTextCmd = null;
         private boolean mIsDisplayTextPending = false;
-        private boolean mIsWaitingOnScreenStatus = false;
         private boolean mScreenIdle = true;
         private Menu mMainMenu = null;
         private int mCurrentSlotId = 0;
@@ -428,17 +426,13 @@ public class StkAppService extends Service {
                 }
                 break;
             case OP_RESPONSE:
-                if (responseNeeded || mIsDisplayTextPending) {
-                    handleCmdResponse((Bundle) msg.obj);
-                }
+                handleCmdResponse((Bundle) msg.obj);
                 // call delayed commands if needed.
                 if (mCmdsQ.size() != 0) {
                     callDelayedMsg();
                 } else {
                     mCmdInProgress = false;
                 }
-                // reset response needed state var to its original value.
-                responseNeeded = true;
                 //reset mIsDisplayTextPending after sending the response.
                 mIsDisplayTextPending = false;
                 break;
@@ -521,16 +515,15 @@ public class StkAppService extends Service {
            launchIdleText();
         }
 
-        // This check will make sure that unwanted busy terminal
-        // response wont be sent, in cases where user response is needed.
-        if (mIsDisplayTextPending && mIsWaitingOnScreenStatus) {
+        // Show user the display text or send screen busy response
+        // if previous display text command is pending.
+        if (mIsDisplayTextPending) {
             if (!mScreenIdle) {
                 sendScreenBusyResponse();
-                mIsDisplayTextPending = false;
             } else {
                 launchTextDialog();
             }
-            mIsWaitingOnScreenStatus = false;
+            mIsDisplayTextPending = false;
             // If an idle text proactive command is set then the
             // request for getting screen status still holds true.
             if (mIdleModeTextCmd == null) {
@@ -550,8 +543,6 @@ public class StkAppService extends Service {
         resMsg.setResultCode(ResultCode.TERMINAL_CRNTLY_UNABLE_TO_PROCESS);
         checkAndUpdateCatService();
         mStkService[mCurrentSlotId].onCmdResponse(resMsg);
-        // reset response needed state var to its original value.
-        responseNeeded = true;
         if (mCmdsQ.size() != 0) {
             callDelayedMsg();
         } else {
@@ -659,7 +650,6 @@ public class StkAppService extends Service {
         switch (cmdMsg.getCmdType()) {
         case DISPLAY_TEXT:
             TextMessage msg = cmdMsg.geTextMessage();
-            responseNeeded = msg.responseNeeded;
             waitForUsersResponse = msg.responseNeeded;
             if (lastSelectedItem != null) {
                 msg.title = lastSelectedItem;
@@ -681,7 +671,6 @@ public class StkAppService extends Service {
                 StkIntent.putExtra(SCREEN_STATUS_REQUEST, true);
                 sendBroadcast(StkIntent);
                 mIsDisplayTextPending = true;
-                mIsWaitingOnScreenStatus = true;
             } else {
                 launchTextDialog();
             }
@@ -1080,9 +1069,10 @@ public class StkAppService extends Service {
         newIntent.putExtra(SLOT_ID, mCurrentSlotId);
         newIntent.putExtra("TEXT", mCurrentCmd.geTextMessage());
         startActivity(newIntent);
-        //For low priority display texts where no application response
-        //is needed, send the command response after launching the text dialog.
-        if (!responseNeeded) {
+        // For display texts with immediate response, send the terminal response
+        // immediately. responseNeeded will be false, if display text command has
+        // the immediate response tlv.
+        if (!mCurrentCmd.geTextMessage().responseNeeded) {
             sendResponse(RES_ID_CONFIRM, mCurrentSlotId, true);
         }
     }
@@ -1453,7 +1443,6 @@ public class StkAppService extends Service {
         mCurrentCmd = null;
         mCurrentMenu = null;
         lastSelectedItem = null;
-        responseNeeded = true;
         mCmdInProgress = false;
         launchBrowser = false;
         mBrowserSettings = null;
@@ -1462,7 +1451,6 @@ public class StkAppService extends Service {
         mCurrentSetupEventCmd = null;
         mIdleModeTextCmd = null;
         mIsDisplayTextPending = false;
-        mIsWaitingOnScreenStatus = false;
         mScreenIdle = true;
         mMainMenu = null;
         mClearSelectItem = false;
