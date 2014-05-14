@@ -311,6 +311,7 @@ public class StkMenuActivity extends ListActivity {
             if (mState == STATE_SECONDARY) {
                 mStkMenu = intent.getParcelableExtra("MENU");
             } else {
+                cancelTimeOut();
                 mStkMenu = appService.getMenu(mSlotId);
             }
         } else {
