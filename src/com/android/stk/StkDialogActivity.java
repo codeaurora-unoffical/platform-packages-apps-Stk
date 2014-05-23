@@ -84,17 +84,15 @@ public class StkDialogActivity extends Activity implements View.OnClickListener 
 
     public void onClick(View v) {
         String input = null;
-        if (mTextMsg.responseNeeded) {
-             switch (v.getId()) {
-                 case OK_BUTTON:
-                     cancelTimeOut();
-                     sendResponse(StkAppService.RES_ID_CONFIRM, true);
-                     break;
-                 case CANCEL_BUTTON:
-                     cancelTimeOut();
-                     sendResponse(StkAppService.RES_ID_CONFIRM, false);
-                     break;
-             }
+        switch (v.getId()) {
+        case OK_BUTTON:
+            cancelTimeOut();
+            sendResponse(StkAppService.RES_ID_CONFIRM, true);
+            break;
+        case CANCEL_BUTTON:
+            cancelTimeOut();
+            sendResponse(StkAppService.RES_ID_CONFIRM, false);
+            break;
         }
         finish();
     }
@@ -196,12 +194,14 @@ public class StkDialogActivity extends Activity implements View.OnClickListener 
     }
 
     private void sendResponse(int resId, boolean confirmed) {
-        Bundle args = new Bundle();
-        args.putInt(StkAppService.OPCODE, StkAppService.OP_RESPONSE);
-        args.putInt(StkAppService.RES_ID, resId);
-        args.putBoolean(StkAppService.CONFIRMATION, confirmed);
-        args.putInt(StkAppService.SLOT_ID, mSlotId);
-        startService(new Intent(this, StkAppService.class).putExtras(args));
+        if (mTextMsg.responseNeeded) {
+            Bundle args = new Bundle();
+            args.putInt(StkAppService.OPCODE, StkAppService.OP_RESPONSE);
+            args.putInt(StkAppService.RES_ID, resId);
+            args.putBoolean(StkAppService.CONFIRMATION, confirmed);
+            args.putInt(StkAppService.SLOT_ID, mSlotId);
+            startService(new Intent(this, StkAppService.class).putExtras(args));
+        }
     }
 
     private void sendResponse(int resId) {
