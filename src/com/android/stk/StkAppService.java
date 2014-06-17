@@ -83,7 +83,8 @@ import static com.android.internal.telephony.cat.CatCmdMessage.
                    SetupEventListConstants.IDLE_SCREEN_AVAILABLE_EVENT;
 import static com.android.internal.telephony.cat.CatCmdMessage.
                    SetupEventListConstants.LANGUAGE_SELECTION_EVENT;
-
+import static com.android.internal.telephony.cat.CatCmdMessage.
+                   SetupEventListConstants.HCI_CONNECTIVITY_EVENT;
 /**
  * SIM toolkit application level service. Interacts with Telephopny messages,
  * application's launch and user input from STK UI elements.
@@ -137,6 +138,7 @@ public class StkAppService extends Service {
     static final int OP_IDLE_SCREEN = 7;
     static final int OP_LOCALE_CHANGED = 8;
     static final int OP_CARD_STATUS_CHANGED = 9;
+    static final int OP_HCI_CONNECTIVITY = 11;
 
     //Invalid SetupEvent
     static final int INVALID_SETUP_EVENT = 0xFF;
@@ -245,6 +247,9 @@ public class StkAppService extends Service {
         case OP_STOP_TONE_USER:
             msg.obj = args;
             msg.what = STOP_TONE_WHAT;
+            break;
+        case OP_HCI_CONNECTIVITY:
+            msg.obj = args;
             break;
         default:
             return;
@@ -481,7 +486,7 @@ public class StkAppService extends Service {
                 break;
             case OP_LOCALE_CHANGED:
                 CatLog.d(this, "Locale Changed");
-                checkForSetupEvent(LANGUAGE_SELECTION_EVENT,(Bundle) msg.obj);
+                checkForSetupEvent(LANGUAGE_SELECTION_EVENT, (Bundle) msg.obj);
                 break;
             case OP_CARD_STATUS_CHANGED:
                 CatLog.d(this, "Card/Icc Status change received");
@@ -491,6 +496,10 @@ public class StkAppService extends Service {
             case OP_STOP_TONE:
                 CatLog.d(this, "Stop tone");
                 handleStopTone(msg);
+                break;
+            case OP_HCI_CONNECTIVITY:
+                CatLog.d(this, "Received HCI CONNECTIVITY");
+                checkForSetupEvent(HCI_CONNECTIVITY_EVENT, (Bundle) msg.obj);
                 break;
             }
         }
@@ -600,6 +609,7 @@ public class StkAppService extends Service {
         case RECEIVE_DATA:
         case SEND_DATA:
         case SET_UP_EVENT_LIST:
+        case ACTIVATE:
             return false;
         }
 
@@ -833,6 +843,11 @@ public class StkAppService extends Service {
                 }
             }
             break;
+         case ACTIVATE:
+             waitForUsersResponse = false;
+             CatLog.d(this, "Broadcasting STK ACTIVATE intent");
+             broadcastActivateIntent();
+             break;
         }
 
         if (!waitForUsersResponse) {
@@ -843,6 +858,13 @@ public class StkAppService extends Service {
             }
         }
     }
+
+   private void broadcastActivateIntent() {
+       Intent intent = new Intent(AppInterface.CAT_ACTIVATE_NOTIFY_ACTION);
+       intent.putExtra("STK_CMD", "ACTIVATE");
+       intent.putExtra(SLOT_ID, mCurrentSlotId);
+       mContext.sendBroadcast(intent, "android.permission.SEND_RECEIVE_STK_INTENT");
+   }
 
     /*
      * Package api used by StkMenuActivity to indicate if its on the foreground.
@@ -1152,6 +1174,9 @@ public class StkAppService extends Service {
                         // Each alpha-numeric character shall be coded on one byte
                         // using the SMS default 7-bit coded alphabet
                         addedInfo = GsmAlphabet.stringToGsm8BitPacked(language);
+                        sendSetUpEventResponse(event, addedInfo);
+                        break;
+                    case HCI_CONNECTIVITY_EVENT:
                         sendSetUpEventResponse(event, addedInfo);
                         break;
                     default:
