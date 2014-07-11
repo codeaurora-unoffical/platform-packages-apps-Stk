@@ -222,7 +222,7 @@ public class StkMenuActivity extends ListActivity {
         menu.findItem(StkApp.MENU_ID_END_SESSION).setVisible(mainVisible);
         menu.findItem(StkApp.MENU_ID_HELP).setVisible(helpVisible);
 
-        return true;
+        return (mainVisible || helpVisible);
     }
 
     @Override
