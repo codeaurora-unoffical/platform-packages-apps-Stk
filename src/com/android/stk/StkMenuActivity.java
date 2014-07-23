@@ -154,12 +154,12 @@ public class StkMenuActivity extends ListActivity {
             finish();
             return;
         }
-        displayMenu();
         // whenever this activity is resumed after a sub activity was invoked
         // (Browser, In call screen) switch back to main state and enable
         // user's input;
         if (!mAcceptUsersInput) {
             mState = STATE_MAIN;
+            mStkMenu = appService.getMenu(mSlotId);
             mAcceptUsersInput = true;
         } else {
             startTimeOutForSecondaryMenu();
@@ -169,6 +169,7 @@ public class StkMenuActivity extends ListActivity {
              * the launch of back to back GET INPUT screens.
              */
         }
+        displayMenu();
         // make sure the progress bar is not shown.
         mProgressView.setIndeterminate(false);
         mProgressView.setVisibility(View.GONE);
