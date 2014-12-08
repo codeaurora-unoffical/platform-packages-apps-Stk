@@ -30,12 +30,19 @@ import com.android.internal.telephony.cat.CatLog;
  *
  */
 public class BootCompletedReceiver extends BroadcastReceiver {
+    private static final String LOG_TAG = new Object(){}.getClass().getEnclosingClass().getName();
     @Override
     public void onReceive(Context context, Intent intent) {
         String action = intent.getAction();
 
         // make sure the app icon is removed every time the device boots.
         if (action.equals(Intent.ACTION_BOOT_COMPLETED)) {
+            Bundle args = new Bundle();
+            args.putInt(StkAppService.OPCODE, StkAppService.OP_BOOT_COMPLETED);
+            context.startService(new Intent(context, StkAppService.class)
+                    .putExtras(args));
+            CatLog.d(LOG_TAG, "[ACTION_BOOT_COMPLETED]");
+        } else if(action.equals(Intent.ACTION_USER_INITIALIZE)) {
             if (!android.os.Process.myUserHandle().isOwner()) {
                 //Disable package for all secondary users. Package is only required for device
                 //owner.
@@ -44,10 +51,6 @@ public class BootCompletedReceiver extends BroadcastReceiver {
                         PackageManager.COMPONENT_ENABLED_STATE_DISABLED, 0);
                 return;
             }
-            Bundle args = new Bundle();
-            args.putInt(StkAppService.OPCODE, StkAppService.OP_BOOT_COMPLETED);
-            context.startService(new Intent(context, StkAppService.class)
-                    .putExtras(args));
         }
     }
 }
