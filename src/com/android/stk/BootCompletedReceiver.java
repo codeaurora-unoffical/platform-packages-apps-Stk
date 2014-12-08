@@ -47,6 +47,14 @@ public class BootCompletedReceiver extends BroadcastReceiver {
             args.putInt(StkAppService.OPCODE, StkAppService.OP_BOOT_COMPLETED);
             context.startService(new Intent(context, StkAppService.class)
                     .putExtras(args));
+        } else if(action.equals(Intent.ACTION_USER_INITIALIZE)) {
+            if (!android.os.Process.myUserHandle().isOwner()) {
+                //Disable package for all secondary users. Package is only required for device
+                //owner.
+                context.getPackageManager().setApplicationEnabledSetting(context.getPackageName(),
+                        PackageManager.COMPONENT_ENABLED_STATE_DISABLED, 0);
+                return;
+            }
         }
     }
 }
