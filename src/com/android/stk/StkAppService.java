@@ -25,10 +25,12 @@ import android.app.Notification;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.app.Service;
+import android.content.BroadcastReceiver;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.res.Configuration;
 import android.content.res.Resources;
 import android.content.res.Resources.NotFoundException;
@@ -221,6 +223,8 @@ public class StkAppService extends Service {
         switch(msg.arg1) {
         case OP_CMD:
             msg.obj = args.getParcelable(CMD_MSG);
+            registerReceiver(mServiceHandler[slotId].mHomeKeyEventReceiver,
+                    new IntentFilter( Intent.ACTION_CLOSE_SYSTEM_DIALOGS));
             break;
         case OP_RESPONSE:
         case OP_CARD_STATUS_CHANGED:
@@ -298,6 +302,7 @@ public class StkAppService extends Service {
         waitForLooper();
         for (int i = 0; i < mPhoneCount; i++) {
             if (mHandlerThread[i] != null) {
+                unregisterReceiver(mServiceHandler[i].mHomeKeyEventReceiver);
                 mHandlerThread[i].quit();
             }
         }
@@ -507,6 +512,20 @@ public class StkAppService extends Service {
                 break;
             }
         }
+
+        private BroadcastReceiver mHomeKeyEventReceiver = new BroadcastReceiver() {
+            @Override
+            public void onReceive(Context context, Intent intent) {
+                String action = intent.getAction();
+                if (action.equals(Intent.ACTION_CLOSE_SYSTEM_DIALOGS)) {
+                    String reason = intent.getStringExtra("reason");
+                    if (reason.equals("homekey") && (mCurrentCmd != null) && (mCmdInProgress == true)) {
+                         CatLog.d(this, "STK display to the background by press HOME key");
+                         sendResponse(RES_ID_END_SESSION, mCurrentSlotId, false);
+                    }
+                }
+            }
+        };
 
         private void handleCardStatusChangeAndIccRefresh(Bundle args) {
             boolean cardStatus = args.getBoolean(AppInterface.CARD_STATUS);
