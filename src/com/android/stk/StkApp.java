@@ -37,7 +37,7 @@ abstract class StkApp extends Application {
     static final int DISP_TEXT_WAIT_FOR_USER_TIMEOUT = (60 * 1000);
 
     // UI timeout, 30 seconds - used for menues and input
-    static final int UI_TIMEOUT = (30 * 1000);
+    static int UI_TIMEOUT = (30 * 1000);
 
     // Tone default timeout - 2 seconds
     static final int TONE_DFEAULT_TIMEOUT = (2 * 1000);
