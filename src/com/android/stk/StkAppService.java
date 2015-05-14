@@ -188,6 +188,10 @@ public class StkAppService extends Service {
         mNotificationManager = (NotificationManager) mContext
                 .getSystemService(Context.NOTIFICATION_SERVICE);
         sInstance = this;
+        if (mContext.getResources().getInteger(R.integer.config_ui_timeout_sec) > 0) {
+            StkApp.UI_TIMEOUT = getResources().getInteger(R.integer.config_ui_timeout_sec)
+                    * 1000;//convert it to millisecond.
+        }
     }
 
     @Override
