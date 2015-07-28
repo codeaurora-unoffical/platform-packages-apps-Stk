@@ -186,6 +186,8 @@ public class StkDialogActivity extends Activity implements View.OnClickListener 
         super.onStop();
         if (!mIsResponseSent) {
             sendResponse(StkAppService.RES_ID_TIMEOUT);
+            cancelTimeOut();
+            finish();
         }
     }
 
@@ -205,7 +207,7 @@ public class StkDialogActivity extends Activity implements View.OnClickListener 
 
     @Override
     protected void onNewIntent(Intent intent) {
-        CatLog.d(this, "onNewIntent - updating the same Dialog box");
+        CatLog.d(this, "onNewIntent - updating the same Dialog box.");
         setIntent(intent);
     }
 
