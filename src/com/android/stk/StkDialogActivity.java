@@ -82,6 +82,8 @@ public class StkDialogActivity extends Activity implements View.OnClickListener 
         okButton.setOnClickListener(this);
         cancelButton.setOnClickListener(this);
 
+        // Dialog will not be closed on touching outside the bounds
+        this.setFinishOnTouchOutside(false);
     }
 
     public void onClick(View v) {
