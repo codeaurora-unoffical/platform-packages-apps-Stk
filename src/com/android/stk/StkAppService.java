@@ -47,6 +47,7 @@ import android.os.SystemProperties;
 import android.os.Vibrator;
 import android.provider.Settings;
 import android.telephony.TelephonyManager;
+import android.text.TextUtils;
 import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -999,7 +1000,7 @@ public class StkAppService extends Service implements Runnable {
             TextMessage alphaId = mStkContext[slotId].mCurrentCmd.geTextMessage();
             if ((mStkContext[slotId].mCurrentCmd.getBrowserSettings().mode
                     == LaunchBrowserMode.LAUNCH_IF_NOT_ALREADY_LAUNCHED) &&
-                    ((alphaId == null) || (alphaId.text == null) || (alphaId.text.length() == 0))) {
+                    ((alphaId == null) || TextUtils.isEmpty(alphaId.text))) {
                 // don't need user confirmation in this case
                 // just launch the browser or spawn a new tab
                 CatLog.d(this, "Browser mode is: launch if not already launched " +
