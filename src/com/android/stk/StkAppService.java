@@ -125,6 +125,7 @@ public class StkAppService extends Service implements Runnable {
         protected int mMenuState = StkMenuActivity.STATE_INIT;
         protected int mOpCode = -1;
         private Activity mActivityInstance = null;
+        private Activity mPrevActivityInstance = null;
         private Activity mDialogInstance = null;
         private Activity mMainActivityInstance = null;
         private int mSlotId = 0;
@@ -141,6 +142,11 @@ public class StkAppService extends Service implements Runnable {
             CatLog.d(this, "getPendingActivityInstance act : " + mSlotId + ", " +
                     mActivityInstance);
             return mActivityInstance;
+        }
+        final synchronized Activity getPendingPrevActivityInstance() {
+            CatLog.d(this, "getPendingPrevActivityInstance act : " + mSlotId + ", " +
+                    mPrevActivityInstance);
+            return mPrevActivityInstance;
         }
         final synchronized void setPendingDialogInstance(Activity act) {
             CatLog.d(this, "setPendingDialogInstance act : " + mSlotId + ", " + act);
@@ -602,6 +608,7 @@ public class StkAppService extends Service implements Runnable {
                 Activity act = new Activity();
                 act = (Activity) msg.obj;
                 CatLog.d(LOG_TAG, "Set activity instance. " + act);
+                mStkContext[slotId].mPrevActivityInstance = mStkContext[slotId].mActivityInstance;
                 mStkContext[slotId].mActivityInstance = act;
                 break;
             case OP_SET_DAL_INST:
@@ -1011,13 +1018,10 @@ public class StkAppService extends Service implements Runnable {
             break;
         case LAUNCH_BROWSER:
             TextMessage alphaId = mStkContext[slotId].mCurrentCmd.geTextMessage();
-            if ((mStkContext[slotId].mCurrentCmd.getBrowserSettings().mode
-                    == LaunchBrowserMode.LAUNCH_IF_NOT_ALREADY_LAUNCHED) &&
-                    ((alphaId == null) || TextUtils.isEmpty(alphaId.text))) {
+            if ((alphaId == null) || TextUtils.isEmpty(alphaId.text)) {
                 // don't need user confirmation in this case
                 // just launch the browser or spawn a new tab
-                CatLog.d(this, "Browser mode is: launch if not already launched " +
-                        "and user confirmation is not currently needed.\n" +
+                CatLog.d(this, "user confirmation is not currently needed.\n" +
                         "supressing confirmation dialogue and confirming silently...");
                 mStkContext[slotId].launchBrowser = true;
                 mStkContext[slotId].mBrowserSettings =
@@ -1266,6 +1270,7 @@ public class StkAppService extends Service implements Runnable {
      */
     private void cleanUpInstanceStackBySlot(int slotId) {
         Activity activity = mStkContext[slotId].getPendingActivityInstance();
+        Activity prevActivity = mStkContext[slotId].getPendingPrevActivityInstance();
         Activity dialog = mStkContext[slotId].getPendingDialogInstance();
         CatLog.d(LOG_TAG, "cleanUpInstanceStackBySlot slotId: " + slotId);
         if (mStkContext[slotId].mCurrentCmd == null) {
@@ -1286,6 +1291,11 @@ public class StkAppService extends Service implements Runnable {
                     AppInterface.CommandType.SELECT_ITEM.value()) {
                 mStkContext[slotId].mIsMenuPending = true;
             } else {
+            }
+            if (prevActivity != null) {
+                CatLog.d(LOG_TAG, "finish pending prev activity at first.");
+                prevActivity.finish();
+                mStkContext[slotId].mPrevActivityInstance = null;
             }
             CatLog.d(LOG_TAG, "finish pending activity.");
             activity.finish();
@@ -1525,7 +1535,7 @@ public class StkAppService extends Service implements Runnable {
     }
 
     private void launchEventMessage(int slotId, TextMessage msg) {
-        if (msg == null || (msg.text != null && msg.text.length() == 0)) {
+        if (msg == null || msg.text == null || msg.text.length() == 0) {
             CatLog.d(LOG_TAG, "launchEventMessage return");
             return;
         }
