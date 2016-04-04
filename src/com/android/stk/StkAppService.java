@@ -876,8 +876,11 @@ public class StkAppService extends Service implements Runnable {
     private boolean isTopOfStack() {
         ActivityManager mAcivityManager = (ActivityManager) mContext
                 .getSystemService(ACTIVITY_SERVICE);
-        String currentPackageName = mAcivityManager.getRunningTasks(1).get(0).topActivity
-                .getPackageName();
+        String currentPackageName = null;
+        List<RunningTaskInfo> tasks = mAcivityManager.getRunningTasks(1);
+        if (tasks != null && !tasks.isEmpty()) {
+            currentPackageName = tasks.get(0).topActivity.getPackageName();
+        }
         if (null != currentPackageName) {
             return currentPackageName.equals(PACKAGE_NAME);
         }
@@ -1753,6 +1756,7 @@ public class StkAppService extends Service implements Runnable {
 
         Message msg = mServiceHandler.obtainMessage();
         msg.arg1 = OP_STOP_TONE;
+        msg.arg2 = slotId;
         msg.obj = (Integer)(showUserInfo ? 1 : 0);
         msg.what = STOP_TONE_WHAT;
         mServiceHandler.sendMessageDelayed(msg, timeout);
