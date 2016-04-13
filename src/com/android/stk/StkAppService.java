@@ -625,7 +625,11 @@ public class StkAppService extends Service implements Runnable {
                 break;
             case OP_LOCALE_CHANGED:
                 CatLog.d(this, "Locale Changed");
-                checkForSetupEvent(LANGUAGE_SELECTION_EVENT,(Bundle) msg.obj, slotId);
+                for (int slot = 0; slot < mSimCount; slot++) {
+                    if (mStkContext[slot] != null) {
+                        checkForSetupEvent(LANGUAGE_SELECTION_EVENT,(Bundle) msg.obj, slot);
+                    }
+                }
                 break;
             case OP_ALPHA_NOTIFY:
                 handleAlphaNotify((Bundle) msg.obj);
@@ -872,8 +876,11 @@ public class StkAppService extends Service implements Runnable {
     private boolean isTopOfStack() {
         ActivityManager mAcivityManager = (ActivityManager) mContext
                 .getSystemService(ACTIVITY_SERVICE);
-        String currentPackageName = mAcivityManager.getRunningTasks(1).get(0).topActivity
-                .getPackageName();
+        String currentPackageName = null;
+        List<RunningTaskInfo> tasks = mAcivityManager.getRunningTasks(1);
+        if (tasks != null && !tasks.isEmpty()) {
+            currentPackageName = tasks.get(0).topActivity.getPackageName();
+        }
         if (null != currentPackageName) {
             return currentPackageName.equals(PACKAGE_NAME);
         }
