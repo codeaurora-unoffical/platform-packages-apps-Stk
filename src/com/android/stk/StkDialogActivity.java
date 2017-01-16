@@ -150,14 +150,18 @@ public class StkDialogActivity extends Activity implements View.OnClickListener 
         }
 
         if (mTextMsg.icon == null) {
-            window.setFeatureDrawableResource(Window.FEATURE_LEFT_ICON,
-                    com.android.internal.R.drawable.stat_notify_sim_toolkit);
+            if(getActionBar() != null){
+                window.setFeatureDrawableResource(Window.FEATURE_LEFT_ICON,
+                        com.android.internal.R.drawable.stat_notify_sim_toolkit);
+            }
             if (mEnableContent) {
                 mMessageView.setContentDescription(StkAppService.TEXT_DEFAULT_ICON);
             }
         } else {
-            window.setFeatureDrawable(Window.FEATURE_LEFT_ICON,
-                    new BitmapDrawable(mTextMsg.icon));
+            if(getActionBar() != null){
+                window.setFeatureDrawable(Window.FEATURE_LEFT_ICON,
+                        new BitmapDrawable(mTextMsg.icon));
+            }
             if (mEnableContent) {
                 mMessageView.setContentDescription(StkAppService.TEXT_ICON_FROM_COMMAND + ": "
                     + mTextMsg.text);
