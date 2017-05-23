@@ -114,6 +114,7 @@ public class StkAppService extends Service implements Runnable {
         protected int mMenuState = StkMenuActivity.STATE_INIT;
         protected int mOpCode = -1;
         private Activity mActivityInstance = null;
+        private Activity mPrevActivityInstance = null;
         private Activity mDialogInstance = null;
         private Activity mMainActivityInstance = null;
         private int mSlotId = 0;
@@ -130,6 +131,11 @@ public class StkAppService extends Service implements Runnable {
             CatLog.d(this, "getPendingActivityInstance act : " + mSlotId + ", " +
                     mActivityInstance);
             return mActivityInstance;
+        }
+        final synchronized Activity getPendingPrevActivityInstance() {
+            CatLog.d(this, "getPendingPrevActivityInstance act : " + mSlotId + ", " +
+                    mPrevActivityInstance);
+            return mPrevActivityInstance;
         }
         final synchronized void setPendingDialogInstance(Activity act) {
             CatLog.d(this, "setPendingDialogInstance act : " + mSlotId + ", " + act);
@@ -592,6 +598,7 @@ public class StkAppService extends Service implements Runnable {
                 Activity act = new Activity();
                 act = (Activity) msg.obj;
                 CatLog.d(LOG_TAG, "Set activity instance. " + act);
+                mStkContext[slotId].mPrevActivityInstance = mStkContext[slotId].mActivityInstance;
                 mStkContext[slotId].mActivityInstance = act;
                 break;
             case OP_SET_DAL_INST:
@@ -611,6 +618,8 @@ public class StkAppService extends Service implements Runnable {
                 for (int slot = PhoneConstants.SIM_ID_1; slot < mSimCount; slot++) {
                     checkForSetupEvent(LANGUAGE_SELECTION_EVENT, (Bundle) msg.obj, slot);
                 }
+                // rename all registered notification channels on locale change
+                createAllChannels();
                 break;
             case OP_ALPHA_NOTIFY:
                 handleAlphaNotify((Bundle) msg.obj);
@@ -1300,6 +1309,7 @@ public class StkAppService extends Service implements Runnable {
      */
     private void cleanUpInstanceStackBySlot(int slotId) {
         Activity activity = mStkContext[slotId].getPendingActivityInstance();
+        Activity prevActivity = mStkContext[slotId].getPendingPrevActivityInstance();
         Activity dialog = mStkContext[slotId].getPendingDialogInstance();
         CatLog.d(LOG_TAG, "cleanUpInstanceStackBySlot slotId: " + slotId);
         if (mStkContext[slotId].mCurrentCmd == null) {
@@ -1320,6 +1330,11 @@ public class StkAppService extends Service implements Runnable {
                     AppInterface.CommandType.SELECT_ITEM.value()) {
                 mStkContext[slotId].mIsMenuPending = true;
             } else {
+            }
+            if (prevActivity != null) {
+                CatLog.d(LOG_TAG, "finish pending prev activity at first.");
+                prevActivity.finish();
+                mStkContext[slotId].mPrevActivityInstance = null;
             }
             CatLog.d(LOG_TAG, "finish pending activity.");
             activity.finish();
@@ -1682,15 +1697,7 @@ public class StkAppService extends Service implements Runnable {
             CatLog.d(LOG_TAG, "Add IdleMode text");
             PendingIntent pendingIntent = PendingIntent.getService(mContext, 0,
                     new Intent(mContext, StkAppService.class), 0);
-            /* Creates the notification channel and registers it with NotificationManager.
-             * If a channel with the same ID is already registered, NotificationManager will
-             * ignore this call.
-             */
-            mNotificationManager.createNotificationChannel(new NotificationChannel(
-                    STK_NOTIFICATION_CHANNEL_ID,
-                    getResources().getString(R.string.stk_channel_name),
-                    NotificationManager.IMPORTANCE_MIN));
-
+            createAllChannels();
             final Notification.Builder notificationBuilder = new Notification.Builder(
                     StkAppService.this, STK_NOTIFICATION_CHANNEL_ID);
             if (mStkContext[slotId].mMainCmd != null &&
@@ -1836,6 +1843,34 @@ public class StkAppService extends Service implements Runnable {
             mVibrator.cancel();
             mVibrator = null;
         }
+    }
+
+    /** Creates the notification channel and registers it with NotificationManager.
+     * If a channel with the same ID is already registered, NotificationManager will
+     * ignore this call.
+     */
+    private void createAllChannels() {
+        mNotificationManager.createNotificationChannel(new NotificationChannel(
+                STK_NOTIFICATION_CHANNEL_ID,
+                getResources().getString(R.string.stk_channel_name),
+                NotificationManager.IMPORTANCE_MIN));
+    }
+
+    private void launchToneDialog(int slotId) {
+        Intent newIntent = new Intent(this, ToneDialog.class);
+        String uriString = STK_TONE_URI + slotId;
+        Uri uriData = Uri.parse(uriString);
+        //Set unique URI to create a new instance of activity for different slotId.
+        CatLog.d(LOG_TAG, "launchToneDialog, slotId: " + slotId);
+        newIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK
+                | Intent.FLAG_ACTIVITY_NO_HISTORY
+                | Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS
+                | getFlagActivityNoUserAction(InitiatedByUserAction.unknown, slotId));
+        newIntent.putExtra("TEXT", mStkContext[slotId].mCurrentCmd.geTextMessage());
+        newIntent.putExtra("TONE", mStkContext[slotId].mCurrentCmd.getToneSettings());
+        newIntent.putExtra(SLOT_ID, slotId);
+        newIntent.setData(uriData);
+        startActivity(newIntent);
     }
 
     private void launchOpenChannelDialog(final int slotId) {
