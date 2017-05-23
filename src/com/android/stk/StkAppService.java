@@ -20,14 +20,11 @@ import android.app.ActivityManager;
 import android.app.ActivityManager.RunningTaskInfo;
 import android.app.AlertDialog;
 import android.app.Notification;
+import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.app.Service;
 import android.app.Activity;
-import android.app.ActivityManager;
-import android.app.ActivityManager.RecentTaskInfo;
-import android.app.ActivityManager.RunningAppProcessInfo;
-import android.content.ComponentName;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
@@ -55,22 +52,16 @@ import android.text.TextUtils;
 import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.View;
-import android.view.Window;
 import android.view.WindowManager;
 import android.widget.ImageView;
-import android.widget.RemoteViews;
 import android.widget.TextView;
 import android.widget.Toast;
-import android.content.BroadcastReceiver;
 import android.content.IntentFilter;
-import android.content.pm.ApplicationInfo;
-import android.content.pm.PackageManager.NameNotFoundException;
 
 import com.android.internal.telephony.cat.AppInterface;
 import com.android.internal.telephony.cat.LaunchBrowserMode;
 import com.android.internal.telephony.cat.Menu;
 import com.android.internal.telephony.cat.Item;
-import com.android.internal.telephony.cat.Input;
 import com.android.internal.telephony.cat.ResultCode;
 import com.android.internal.telephony.cat.CatCmdMessage;
 import com.android.internal.telephony.cat.CatCmdMessage.BrowserSettings;
@@ -80,11 +71,7 @@ import com.android.internal.telephony.cat.CatResponseMessage;
 import com.android.internal.telephony.cat.TextMessage;
 import com.android.internal.telephony.cat.ToneSettings;
 import com.android.internal.telephony.uicc.IccRefreshResponse;
-import com.android.internal.telephony.uicc.IccCardStatus.CardState;
 import com.android.internal.telephony.PhoneConstants;
-import com.android.internal.telephony.TelephonyIntents;
-import com.android.internal.telephony.IccCardConstants;
-import com.android.internal.telephony.uicc.UiccController;
 import com.android.internal.telephony.GsmAlphabet;
 import com.android.internal.telephony.cat.CatService;
 
@@ -127,6 +114,7 @@ public class StkAppService extends Service implements Runnable {
         protected int mMenuState = StkMenuActivity.STATE_INIT;
         protected int mOpCode = -1;
         private Activity mActivityInstance = null;
+        private Activity mPrevActivityInstance = null;
         private Activity mDialogInstance = null;
         private Activity mMainActivityInstance = null;
         private int mSlotId = 0;
@@ -143,6 +131,11 @@ public class StkAppService extends Service implements Runnable {
             CatLog.d(this, "getPendingActivityInstance act : " + mSlotId + ", " +
                     mActivityInstance);
             return mActivityInstance;
+        }
+        final synchronized Activity getPendingPrevActivityInstance() {
+            CatLog.d(this, "getPendingPrevActivityInstance act : " + mSlotId + ", " +
+                    mPrevActivityInstance);
+            return mPrevActivityInstance;
         }
         final synchronized void setPendingDialogInstance(Activity act) {
             CatLog.d(this, "setPendingDialogInstance act : " + mSlotId + ", " + act);
@@ -261,6 +254,9 @@ public class StkAppService extends Service implements Runnable {
     private static final String STK_DIALOG_ACTIVITY_NAME = PACKAGE_NAME + ".StkDialogActivity";
     // Notification id used to display Idle Mode text in NotificationManager.
     private static final int STK_NOTIFICATION_ID = 333;
+    // Notification channel containing all mobile service messages notifications.
+    private static final String STK_NOTIFICATION_CHANNEL_ID = "mobileServiceMessages";
+
     private static final String LOG_TAG = new Object(){}.getClass().getEnclosingClass().getName();
 
     // Broadcast sent from Launcher when the screen switched to idle state(home screen).
@@ -602,6 +598,7 @@ public class StkAppService extends Service implements Runnable {
                 Activity act = new Activity();
                 act = (Activity) msg.obj;
                 CatLog.d(LOG_TAG, "Set activity instance. " + act);
+                mStkContext[slotId].mPrevActivityInstance = mStkContext[slotId].mActivityInstance;
                 mStkContext[slotId].mActivityInstance = act;
                 break;
             case OP_SET_DAL_INST:
@@ -621,6 +618,8 @@ public class StkAppService extends Service implements Runnable {
                 for (int slot = PhoneConstants.SIM_ID_1; slot < mSimCount; slot++) {
                     checkForSetupEvent(LANGUAGE_SELECTION_EVENT, (Bundle) msg.obj, slot);
                 }
+                // rename all registered notification channels on locale change
+                createAllChannels();
                 break;
             case OP_ALPHA_NOTIFY:
                 handleAlphaNotify((Bundle) msg.obj);
@@ -1310,6 +1309,7 @@ public class StkAppService extends Service implements Runnable {
      */
     private void cleanUpInstanceStackBySlot(int slotId) {
         Activity activity = mStkContext[slotId].getPendingActivityInstance();
+        Activity prevActivity = mStkContext[slotId].getPendingPrevActivityInstance();
         Activity dialog = mStkContext[slotId].getPendingDialogInstance();
         CatLog.d(LOG_TAG, "cleanUpInstanceStackBySlot slotId: " + slotId);
         if (mStkContext[slotId].mCurrentCmd == null) {
@@ -1330,6 +1330,11 @@ public class StkAppService extends Service implements Runnable {
                     AppInterface.CommandType.SELECT_ITEM.value()) {
                 mStkContext[slotId].mIsMenuPending = true;
             } else {
+            }
+            if (prevActivity != null) {
+                CatLog.d(LOG_TAG, "finish pending prev activity at first.");
+                prevActivity.finish();
+                mStkContext[slotId].mPrevActivityInstance = null;
             }
             CatLog.d(LOG_TAG, "finish pending activity.");
             activity.finish();
@@ -1692,9 +1697,9 @@ public class StkAppService extends Service implements Runnable {
             CatLog.d(LOG_TAG, "Add IdleMode text");
             PendingIntent pendingIntent = PendingIntent.getService(mContext, 0,
                     new Intent(mContext, StkAppService.class), 0);
-
+            createAllChannels();
             final Notification.Builder notificationBuilder = new Notification.Builder(
-                    StkAppService.this);
+                    StkAppService.this, STK_NOTIFICATION_CHANNEL_ID);
             if (mStkContext[slotId].mMainCmd != null &&
                     mStkContext[slotId].mMainCmd.getMenu() != null) {
                 notificationBuilder.setContentTitle(mStkContext[slotId].mMainCmd.getMenu().title);
@@ -1838,6 +1843,34 @@ public class StkAppService extends Service implements Runnable {
             mVibrator.cancel();
             mVibrator = null;
         }
+    }
+
+    /** Creates the notification channel and registers it with NotificationManager.
+     * If a channel with the same ID is already registered, NotificationManager will
+     * ignore this call.
+     */
+    private void createAllChannels() {
+        mNotificationManager.createNotificationChannel(new NotificationChannel(
+                STK_NOTIFICATION_CHANNEL_ID,
+                getResources().getString(R.string.stk_channel_name),
+                NotificationManager.IMPORTANCE_MIN));
+    }
+
+    private void launchToneDialog(int slotId) {
+        Intent newIntent = new Intent(this, ToneDialog.class);
+        String uriString = STK_TONE_URI + slotId;
+        Uri uriData = Uri.parse(uriString);
+        //Set unique URI to create a new instance of activity for different slotId.
+        CatLog.d(LOG_TAG, "launchToneDialog, slotId: " + slotId);
+        newIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK
+                | Intent.FLAG_ACTIVITY_NO_HISTORY
+                | Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS
+                | getFlagActivityNoUserAction(InitiatedByUserAction.unknown, slotId));
+        newIntent.putExtra("TEXT", mStkContext[slotId].mCurrentCmd.geTextMessage());
+        newIntent.putExtra("TONE", mStkContext[slotId].mCurrentCmd.getToneSettings());
+        newIntent.putExtra(SLOT_ID, slotId);
+        newIntent.setData(uriData);
+        startActivity(newIntent);
     }
 
     private void launchOpenChannelDialog(final int slotId) {
