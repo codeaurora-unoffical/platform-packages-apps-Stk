@@ -24,6 +24,7 @@ import android.content.Intent;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
+import android.telephony.SubscriptionManager;
 import android.view.ContextMenu;
 import android.view.ContextMenu.ContextMenuInfo;
 import android.view.KeyEvent;
@@ -124,6 +125,10 @@ public class StkMenuActivity extends ListActivity implements View.OnCreateContex
         }
 
         initFromIntent(getIntent());
+        if (!SubscriptionManager.isValidSlotIndex(mSlotId)) {
+            finish();
+            return;
+        }
     }
 
     @Override
@@ -288,8 +293,13 @@ public class StkMenuActivity extends ListActivity implements View.OnCreateContex
     public void onDestroy() {
         getListView().setOnCreateContextMenuListener(null);
         super.onDestroy();
+<<<<<<< HEAD
         CatLog.d(LOG_TAG, "onDestroy" + ", " + mState);
         if (appService == null) {
+=======
+        CatLog.d(LOG_TAG, "onDestroy" + "," + mState);
+        if (appService == null || !SubscriptionManager.isValidSlotIndex(mSlotId)) {
+>>>>>>> adf1cbc4054d004fa8ef61f6cca5cad38f95f523
             return;
         }
         //isMenuPending: if input act is finish by stkappservice when OP_LAUNCH_APP again,
