@@ -293,13 +293,8 @@ public class StkMenuActivity extends ListActivity implements View.OnCreateContex
     public void onDestroy() {
         getListView().setOnCreateContextMenuListener(null);
         super.onDestroy();
-<<<<<<< HEAD
-        CatLog.d(LOG_TAG, "onDestroy" + ", " + mState);
-        if (appService == null) {
-=======
         CatLog.d(LOG_TAG, "onDestroy" + "," + mState);
         if (appService == null || !SubscriptionManager.isValidSlotIndex(mSlotId)) {
->>>>>>> adf1cbc4054d004fa8ef61f6cca5cad38f95f523
             return;
         }
         //isMenuPending: if input act is finish by stkappservice when OP_LAUNCH_APP again,
