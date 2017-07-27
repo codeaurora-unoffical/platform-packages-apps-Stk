@@ -28,8 +28,11 @@ import android.app.Activity;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
+<<<<<<< HEAD
 import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
+=======
+>>>>>>> adf1cbc4054d004fa8ef61f6cca5cad38f95f523
 import android.content.res.Configuration;
 import android.content.res.Resources;
 import android.content.res.Resources.NotFoundException;
@@ -193,7 +196,11 @@ public class StkAppService extends Service implements Runnable {
     static final String STK_INPUT_URI = "stk://com.android.stk/input/";
     static final String STK_TONE_URI = "stk://com.android.stk/tone/";
     static final String FINISH_TONE_ACTIVITY_ACTION =
+<<<<<<< HEAD
                                 "org.codeaurora.intent.action.stk.finish_activity";
+=======
+                                "android.intent.action.stk.finish_activity";
+>>>>>>> adf1cbc4054d004fa8ef61f6cca5cad38f95f523
 
     // These below constants are used for SETUP_EVENT_LIST
     static final String SETUP_EVENT_TYPE = "event";
@@ -218,7 +225,11 @@ public class StkAppService extends Service implements Runnable {
     //Invalid SetupEvent
     static final int INVALID_SETUP_EVENT = 0xFF;
 
+<<<<<<< HEAD
     // Message id to signal tone duration timeout.
+=======
+    // Message id to signal stop tone due to play tone timeout.
+>>>>>>> adf1cbc4054d004fa8ef61f6cca5cad38f95f523
     private static final int OP_STOP_TONE = 16;
 
     // Message id to signal stop tone on user keyback.
@@ -280,6 +291,10 @@ public class StkAppService extends Service implements Runnable {
 
     // system property to set the STK specific default url for launch browser proactive cmds
     private static final String STK_BROWSER_DEFAULT_URL_SYSPROP = "persist.radio.stk.default_url";
+
+    // Description of the Icon that is being dispalyed in a Stk activity.
+    public static final String TEXT_DEFAULT_ICON = "Stk Default Icon";
+    public static final String TEXT_ICON_FROM_COMMAND="Stk Icon from Command";
 
     @Override
     public void onCreate() {
@@ -378,9 +393,12 @@ public class StkAppService extends Service implements Runnable {
             msg.obj = args;
             msg.what = STOP_TONE_WHAT;
             break;
+<<<<<<< HEAD
         case OP_HCI_CONNECTIVITY:
             msg.obj = args;
             break;
+=======
+>>>>>>> adf1cbc4054d004fa8ef61f6cca5cad38f95f523
         default:
             return;
         }
@@ -636,10 +654,13 @@ public class StkAppService extends Service implements Runnable {
                 CatLog.d(this, "Stop tone");
                 handleStopTone(msg, slotId);
                 break;
+<<<<<<< HEAD
             case OP_HCI_CONNECTIVITY:
                 CatLog.d(this, "Received HCI CONNECTIVITY");
                 checkForSetupEvent(HCI_CONNECTIVITY_EVENT, (Bundle) msg.obj, slotId);
                 break;
+=======
+>>>>>>> adf1cbc4054d004fa8ef61f6cca5cad38f95f523
             }
         }
 
@@ -1588,6 +1609,7 @@ public class StkAppService extends Service implements Runnable {
         ImageView iv = (ImageView) v
                 .findViewById(com.android.internal.R.id.icon);
         if (msg.icon != null) {
+            iv.setContentDescription(TEXT_ICON_FROM_COMMAND);
             iv.setImageBitmap(msg.icon);
         } else {
             iv.setVisibility(View.GONE);
@@ -1871,6 +1893,124 @@ public class StkAppService extends Service implements Runnable {
         newIntent.putExtra(SLOT_ID, slotId);
         newIntent.setData(uriData);
         startActivity(newIntent);
+    }
+
+    private void handlePlayTone(int slotId) {
+        TextMessage toneMsg = mStkContext[slotId].mCurrentCmd.geTextMessage();
+
+        boolean showUser = true;
+        boolean displayDialog = true;
+        Resources resource = Resources.getSystem();
+        try {
+            displayDialog = !resource.getBoolean(
+                    com.android.internal.R.bool.config_stkNoAlphaUsrCnf);
+        } catch (NotFoundException e) {
+            displayDialog = true;
+        }
+
+        // As per the spec 3GPP TS 11.14, 6.4.5. Play Tone.
+        // If there is no alpha identifier tlv present, UE may show the
+        // user information. 'config_stkNoAlphaUsrCnf' value will decide
+        // whether to show it or not.
+        // If alpha identifier tlv is present and its data is null, play only tone
+        // without showing user any information.
+        // Alpha Id is Present, but the text data is null.
+        if ((toneMsg.text != null ) && (toneMsg.text.equals(""))) {
+            CatLog.d(this, "Alpha identifier data is null, play only tone");
+            showUser = false;
+        }
+        // Alpha Id is not present AND we need to show info to the user.
+        if (toneMsg.text == null && displayDialog) {
+            CatLog.d(this, "toneMsg.text " + toneMsg.text
+                    + " Starting ToneDialog activity with default message.");
+            toneMsg.text = getResources().getString(R.string.default_tone_dialog_msg);
+            showUser = true;
+        }
+        // Dont show user info, if config setting is true.
+        if (toneMsg.text == null && !displayDialog) {
+            CatLog.d(this, "config value stkNoAlphaUsrCnf is true");
+            showUser = false;
+        }
+
+        CatLog.d(this, "toneMsg.text: " + toneMsg.text + "showUser: " +showUser +
+                "displayDialog: " +displayDialog);
+        playTone(showUser, slotId);
+    }
+
+    private void playTone(boolean showUserInfo, int slotId) {
+        // Start playing tone and vibration
+        ToneSettings settings = mStkContext[slotId].mCurrentCmd.getToneSettings();
+        if (null == settings) {
+            CatLog.d(this, "null settings, not playing tone.");
+            return;
+        }
+
+        mVibrator = (Vibrator)getSystemService(VIBRATOR_SERVICE);
+        mTonePlayer = new TonePlayer();
+        mTonePlayer.play(settings.tone);
+        int timeout = StkApp.calculateDurationInMilis(settings.duration);
+        if (timeout == 0) {
+            timeout = StkApp.TONE_DEFAULT_TIMEOUT;
+        }
+
+        Message msg = mServiceHandler.obtainMessage();
+        msg.arg1 = OP_STOP_TONE;
+        msg.arg2 = slotId;
+        msg.obj = (Integer)(showUserInfo ? 1 : 0);
+        msg.what = STOP_TONE_WHAT;
+        mServiceHandler.sendMessageDelayed(msg, timeout);
+        if (settings.vibrate) {
+            mVibrator.vibrate(timeout);
+        }
+
+        // Start Tone dialog Activity to show user the information.
+        if (showUserInfo) {
+            Intent newIntent = new Intent(sInstance, ToneDialog.class);
+            String uriString = STK_TONE_URI + slotId;
+            Uri uriData = Uri.parse(uriString);
+            newIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK
+                    | Intent.FLAG_ACTIVITY_NO_HISTORY
+                    | Intent.FLAG_ACTIVITY_SINGLE_TOP
+                    | Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS
+                    | getFlagActivityNoUserAction(InitiatedByUserAction.unknown, slotId));
+            newIntent.putExtra("TEXT", mStkContext[slotId].mCurrentCmd.geTextMessage());
+            newIntent.putExtra(SLOT_ID, slotId);
+            newIntent.setData(uriData);
+            startActivity(newIntent);
+        }
+    }
+
+    private void finishToneDialogActivity() {
+        Intent finishIntent = new Intent(FINISH_TONE_ACTIVITY_ACTION);
+        sendBroadcast(finishIntent);
+    }
+
+    private void handleStopTone(Message msg, int slotId) {
+        int resId = 0;
+
+        // Stop the play tone in following cases:
+        // 1.OP_STOP_TONE: play tone timer expires.
+        // 2.STOP_TONE_USER: user pressed the back key.
+        if (msg.arg1 == OP_STOP_TONE) {
+            resId = RES_ID_DONE;
+            // Dismiss Tone dialog, after finishing off playing the tone.
+            int finishActivity = (Integer) msg.obj;
+            if (finishActivity == 1) finishToneDialogActivity();
+        } else if (msg.arg1 == OP_STOP_TONE_USER) {
+            resId = RES_ID_END_SESSION;
+        }
+
+        sendResponse(resId, slotId, true);
+        mServiceHandler.removeMessages(STOP_TONE_WHAT);
+        if (mTonePlayer != null)  {
+            mTonePlayer.stop();
+            mTonePlayer.release();
+            mTonePlayer = null;
+        }
+        if (mVibrator != null) {
+            mVibrator.cancel();
+            mVibrator = null;
+        }
     }
 
     private void launchOpenChannelDialog(final int slotId) {
