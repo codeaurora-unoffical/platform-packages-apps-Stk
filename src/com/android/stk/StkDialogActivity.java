@@ -58,6 +58,7 @@ public class StkDialogActivity extends Activity {
     //keys) for saving the state of the dialog in the icicle
     private static final String TEXT = "text";
 
+    private AlertDialog alertDialog;
     private AlertDialog.Builder alertDialogBuilder;
     private DisplayMetrics dm;
 
@@ -175,7 +176,7 @@ public class StkDialogActivity extends Activity {
                 alertDialogBuilder.setIcon(new BitmapDrawable(scBitmap));
             }
         }
-        alertDialogBuilder.show();
+        alertDialog = alertDialogBuilder.show();
 
         /*
          * If the userClear flag is set and dialogduration is set to 0, the display Text
@@ -266,6 +267,10 @@ public class StkDialogActivity extends Activity {
         // Cleanup broadcast receivers to avoid leaks
         if (mBroadcastReceiver != null) {
             unregisterReceiver(mBroadcastReceiver);
+        }
+        // Cleanup alert dialog to avoid leaks
+        if (alertDialog != null && alertDialog.isShowing()) {
+            alertDialog.dismiss();
         }
     }
 
