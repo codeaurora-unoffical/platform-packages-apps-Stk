@@ -46,6 +46,7 @@ public class ToneDialog extends Activity {
     int mSlotId = -1;
 
     private static final String LOG_TAG = new Object(){}.getClass().getEnclosingClass().getName();
+    private AlertDialog alertDialog;
 
     @Override
     protected void onCreate(Bundle icicle) {
@@ -82,11 +83,15 @@ public class ToneDialog extends Activity {
         if (toneMsg.iconSelfExplanatory && toneMsg.icon != null) {
             tv.setVisibility(View.GONE);
         }
+        alertDialog = alertDialogBuilder.show();
     }
 
     @Override
     protected void onDestroy() {
         CatLog.d(LOG_TAG, "onDestroy");
+        if (alertDialog != null && alertDialog.isShowing()) {
+            alertDialog.dismiss();
+        }
         // Unregister receiver
         unregisterReceiver(mFinishActivityReceiver);
         super.onDestroy();
