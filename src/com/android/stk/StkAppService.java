@@ -657,6 +657,7 @@ public class StkAppService extends Service implements Runnable {
                 mNotificationManager.cancel(getNotificationId(slotId));
                 mStkContext[slotId].mCurrentMenu = null;
                 mStkContext[slotId].mMainCmd = null;
+                mStkService[slotId] = null;
                 if (isAllOtherCardsAbsent(slotId)) {
                     CatLog.d(LOG_TAG, "All CARDs are ABSENT");
                     StkAppInstaller.unInstall(mContext);
@@ -722,14 +723,11 @@ public class StkAppService extends Service implements Runnable {
         mainIntent.addCategory(Intent.CATEGORY_HOME);
         PackageManager pm = mContext.getPackageManager();
 
-        if (null != currentPackageName) {
-            List<ResolveInfo> actList = pm.queryIntentActivities(mainIntent, 0);
-            for (int i = 0; i < actList.size(); i++) {
-                ResolveInfo info = actList.get(i);
-
-                if (currentPackageName.equals(info.activityInfo.packageName)) {
-                    return true;
-                }
+        ResolveInfo resolveInfo = getPackageManager().resolveActivity(mainIntent,
+            PackageManager.MATCH_DEFAULT_ONLY);
+        if (resolveInfo != null) {
+            if (currentPackageName.equals(resolveInfo.activityInfo.packageName)) {
+                return true;
             }
         }
 
