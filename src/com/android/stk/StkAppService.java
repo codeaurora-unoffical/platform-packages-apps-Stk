@@ -657,6 +657,7 @@ public class StkAppService extends Service implements Runnable {
                 mNotificationManager.cancel(getNotificationId(slotId));
                 mStkContext[slotId].mCurrentMenu = null;
                 mStkContext[slotId].mMainCmd = null;
+                mStkService[slotId] = null;
                 if (isAllOtherCardsAbsent(slotId)) {
                     CatLog.d(LOG_TAG, "All CARDs are ABSENT");
                     StkAppInstaller.unInstall(mContext);
@@ -1776,11 +1777,6 @@ public class StkAppService extends Service implements Runnable {
         playTone(showUser, slotId);
     }
 
-    private void finishToneDialogActivity() {
-        Intent finishIntent = new Intent(FINISH_TONE_ACTIVITY_ACTION);
-        sendBroadcast(finishIntent);
-    }
-
     private void handleStopTone(Message msg, int slotId) {
         int resId = 0;
 
@@ -1789,9 +1785,6 @@ public class StkAppService extends Service implements Runnable {
         // 2.STOP_TONE_USER: user pressed the back key.
         if (msg.arg1 == OP_STOP_TONE) {
             resId = RES_ID_DONE;
-            // Dismiss Tone dialog, after finishing off playing the tone.
-            int finishActivity = (Integer) msg.obj;
-            if (finishActivity == 1) finishToneDialogActivity();
         } else if (msg.arg1 == OP_STOP_TONE_USER) {
             resId = RES_ID_END_SESSION;
         }
@@ -1874,6 +1867,7 @@ public class StkAppService extends Service implements Runnable {
                     | Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS
                     | getFlagActivityNoUserAction(InitiatedByUserAction.unknown, slotId));
             newIntent.putExtra("TEXT", mStkContext[slotId].mCurrentCmd.geTextMessage());
+            newIntent.putExtra("TONE", mStkContext[slotId].mCurrentCmd.getToneSettings());
             newIntent.putExtra(SLOT_ID, slotId);
             newIntent.setData(uriData);
             startActivity(newIntent);
