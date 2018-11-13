@@ -34,6 +34,7 @@ import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.Window;
+import android.view.WindowManager;
 import android.view.inputmethod.EditorInfo;
 import android.widget.Button;
 import android.widget.EditText;
@@ -81,6 +82,7 @@ public class StkInputActivity extends Activity implements View.OnClickListener,
     private static final String RESPONSE_SENT_KEY = "response_sent";
     private static final String INPUT_STRING_KEY = "input_string";
     private static final String ALARM_TIME_KEY = "alarm_time";
+    private static final String PENDING = "pending";
 
     private static final String INPUT_ALARM_TAG = LOG_TAG;
     private static final long NO_INPUT_ALARM = -1;
@@ -89,6 +91,8 @@ public class StkInputActivity extends Activity implements View.OnClickListener,
     private StkAppService appService = StkAppService.getInstance();
 
     private boolean mIsResponseSent = false;
+    // Determines whether this is in the pending state.
+    private boolean mIsPending = false;
     private int mSlotId = -1;
 
     // Click listener to handle buttons press..
@@ -109,8 +113,8 @@ public class StkInputActivity extends Activity implements View.OnClickListener,
             input = mTextIn.getText().toString();
             break;
         case R.id.button_cancel:
-            appService.getStkContext(mSlotId).setPendingActivityInstance(this);
             sendResponse(StkAppService.RES_ID_END_SESSION);
+            finish();
             return;
         // Yes/No layout buttons.
         case R.id.button_yes:
@@ -143,7 +147,6 @@ public class StkInputActivity extends Activity implements View.OnClickListener,
             break;
         }
         CatLog.d(LOG_TAG, "handleClick, ready to response");
-        appService.getStkContext(mSlotId).setPendingActivityInstance(this);
         sendResponse(StkAppService.RES_ID_INPUT, input, false);
     }
 
@@ -210,6 +213,11 @@ public class StkInputActivity extends Activity implements View.OnClickListener,
         super.onResume();
         CatLog.d(LOG_TAG, "onResume - mIsResponseSent[" + mIsResponseSent +
                 "], slot id: " + mSlotId);
+        // If the terminal has already sent response to the card when this activity is resumed,
+        // keep this as a pending activity as this should be finished when the session ends.
+        if (!mIsResponseSent) {
+            setPendingState(false);
+        }
 
         if (mAlarmTime == NO_INPUT_ALARM) {
             startTimeOut();
@@ -230,17 +238,21 @@ public class StkInputActivity extends Activity implements View.OnClickListener,
         super.onStop();
         CatLog.d(LOG_TAG, "onStop - mIsResponseSent[" + mIsResponseSent + "]");
 
-        // Nothing should be done here if this activity is being restarted now.
-        if (isChangingConfigurations()) {
+        // Nothing should be done here if this activity is being finished or restarted now.
+        if (isFinishing() || isChangingConfigurations()) {
             return;
         }
 
-        // It is unnecessary to keep this activity if the response was already sent and
-        // this got invisible because of the other full-screen activity in this application.
-        if (mIsResponseSent && appService.isTopOfStack()) {
-            finish();
+        if (mIsResponseSent) {
+            // It is unnecessary to keep this activity if the response was already sent and
+            // the dialog activity is NOT on the top of this activity.
+            if (!appService.isStkDialogActivated()) {
+                finish();
+            }
         } else {
-            appService.getStkContext(mSlotId).setPendingActivityInstance(this);
+            // This should be registered as the pending activity here
+            // only when no response has been sent back to the card.
+            setPendingState(true);
         }
     }
 
@@ -284,7 +296,6 @@ public class StkInputActivity extends Activity implements View.OnClickListener,
         switch (keyCode) {
         case KeyEvent.KEYCODE_BACK:
             CatLog.d(LOG_TAG, "onKeyDown - KEYCODE_BACK");
-            appService.getStkContext(mSlotId).setPendingActivityInstance(this);
             sendResponse(StkAppService.RES_ID_BACKWARD, null, false);
             return true;
         }
@@ -316,14 +327,17 @@ public class StkInputActivity extends Activity implements View.OnClickListener,
                 + help + "]");
         mIsResponseSent = true;
         Bundle args = new Bundle();
-        args.putInt(StkAppService.OPCODE, StkAppService.OP_RESPONSE);
-        args.putInt(StkAppService.SLOT_ID, mSlotId);
         args.putInt(StkAppService.RES_ID, resId);
         if (input != null) {
             args.putString(StkAppService.INPUT, input);
         }
         args.putBoolean(StkAppService.HELP, help);
-        startService(new Intent(this, StkAppService.class).putExtras(args));
+        appService.sendResponse(args, mSlotId);
+
+        // This instance should be set as a pending activity and finished by the service
+        if (resId != StkAppService.RES_ID_END_SESSION) {
+            setPendingState(true);
+        }
     }
 
     @Override
@@ -370,7 +384,6 @@ public class StkInputActivity extends Activity implements View.OnClickListener,
             return true;
         case StkApp.MENU_ID_HELP:
             sendResponse(StkAppService.RES_ID_INPUT, "", true);
-            finish();
             return true;
         }
         return false;
@@ -382,6 +395,7 @@ public class StkInputActivity extends Activity implements View.OnClickListener,
         outState.putBoolean(RESPONSE_SENT_KEY, mIsResponseSent);
         outState.putString(INPUT_STRING_KEY, mTextIn.getText().toString());
         outState.putLong(ALARM_TIME_KEY, mAlarmTime);
+        outState.putBoolean(PENDING, mIsPending);
     }
 
     @Override
@@ -401,6 +415,22 @@ public class StkInputActivity extends Activity implements View.OnClickListener,
         mAlarmTime = savedInstanceState.getLong(ALARM_TIME_KEY, NO_INPUT_ALARM);
         if (mAlarmTime != NO_INPUT_ALARM) {
             startTimeOut();
+        }
+
+        if (!mIsResponseSent && !savedInstanceState.getBoolean(PENDING)) {
+            // If this is in the foreground and no response has been sent to the card,
+            // this must not be registered as pending activity by the previous instance.
+            // No need to renew nor clear pending activity in this case.
+        } else {
+            // Renew the instance of the pending activity.
+            setPendingState(true);
+        }
+    }
+
+    private void setPendingState(boolean on) {
+        if (mIsPending != on) {
+            appService.getStkContext(mSlotId).setPendingActivityInstance(on ? this : null);
+            mIsPending = on;
         }
     }
 
@@ -505,6 +535,10 @@ public class StkInputActivity extends Activity implements View.OnClickListener,
                         .getInstance());
             }
             mTextIn.setImeOptions(EditorInfo.IME_FLAG_NO_FULLSCREEN);
+            // Request the initial focus on the edit box and show the software keyboard.
+            mTextIn.requestFocus();
+            getWindow().setSoftInputMode(
+                    WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_VISIBLE);
             // Set default text if present.
             if (mStkInput.defaultText != null) {
                 mTextIn.setText(mStkInput.defaultText);
@@ -548,8 +582,6 @@ public class StkInputActivity extends Activity implements View.OnClickListener,
                 public void onAlarm() {
                     CatLog.d(LOG_TAG, "The alarm time is reached");
                     mAlarmTime = NO_INPUT_ALARM;
-                    appService.getStkContext(mSlotId).setPendingActivityInstance(
-                            StkInputActivity.this);
                     sendResponse(StkAppService.RES_ID_TIMEOUT);
                 }
             };
