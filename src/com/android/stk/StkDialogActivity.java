@@ -22,7 +22,6 @@ import android.app.AlertDialog;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
-import android.os.Build;
 import android.os.Bundle;
 import android.os.SystemClock;
 import android.os.SystemProperties;
@@ -35,6 +34,7 @@ import android.widget.TextView;
 
 import com.android.internal.telephony.cat.CatLog;
 import com.android.internal.telephony.cat.TextMessage;
+import com.android.internal.telephony.util.TelephonyUtils;
 
 /**
  * AlertDialog used for DISPLAY TEXT commands.
@@ -368,7 +368,7 @@ public class StkDialogActivity extends Activity {
             finish();
         }
 
-        CatLog.d(LOG_TAG, "initFromIntent - [" + (Build.IS_DEBUGGABLE ? mTextMsg : "********")
+        CatLog.d(LOG_TAG, "initFromIntent - [" + (TelephonyUtils.IS_DEBUGGABLE ? mTextMsg : "********")
                 + "], slot id: " + mSlotId);
     }
 
