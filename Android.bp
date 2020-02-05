@@ -18,4 +18,5 @@ android_app {
             "proguard.proguard",
         ],
     },
+    apex_available: [ "com.android.telephony" ],
 }
